@@ -35,7 +35,7 @@ def validate_token():
 @main_bp.route('/<path:path>')
 def serve_react(path):
     """Serve the React frontend from the 'build' folder."""
-    build_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'build')
+    build_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'frontend', 'build')
 
     # If path is empty or requesting a specific file that exists, serve it
     if path and os.path.exists(os.path.join(build_folder, path)):
