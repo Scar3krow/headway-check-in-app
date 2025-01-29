@@ -12,11 +12,11 @@ bcrypt = Bcrypt()
 
 # ✅ Detect if running in Render or Locally
 if os.getenv("RENDER"):
-    # Running on Render → Use secret file in /etc/secrets/
+    # ✅ Running on Render → Use the secret file stored in /etc/secrets/
     CREDENTIALS_PATH = "/etc/secrets/secret_key.json"
 else:
-    # Running Locally → Look for secret_key.json in the `app` folder
-    CREDENTIALS_PATH = os.path.join(os.path.dirname(__file__), "app", "secret_key.json")
+    # ✅ Running Locally → Look in the root directory for secret_key.json
+    CREDENTIALS_PATH = os.path.join(os.getcwd(), "secret_key.json")
 
 # ✅ Ensure the credentials file exists
 if not os.path.exists(CREDENTIALS_PATH):

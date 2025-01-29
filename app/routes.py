@@ -7,11 +7,18 @@ from google.cloud import firestore
 from datetime import datetime, timedelta, timezone
 from firebase_admin import firestore
 
+
 bcrypt = Bcrypt()
 main_bp = Blueprint('main', __name__)
 db = firestore.Client()
 
+# 🔥 Ensure we serve from the correct React build directory
+build_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'frontend', 'build')
+
 SECRET_KEY = 'Headway50!'  # Replace with a strong, unique key
+
+print(f"Checking static folder: {os.path.join(build_folder, 'static')}")
+print(f"Files in /static/: {os.listdir(os.path.join(build_folder, 'static')) if os.path.exists(os.path.join(build_folder, 'static')) else 'Does not exist'}")
 
 # Utility function for validating tokens
 def validate_token():
@@ -28,24 +35,36 @@ def validate_token():
     except jwt.InvalidTokenError:
         return None, {'message': 'Invalid token'}, 401
 
-# ============================
-#  Serve React Frontend at `/`
-# ============================
+@main_bp.route('/static/<path:filename>')
+def serve_static(filename):
+    """Manually serve static files if Flask isn't doing it automatically."""
+    static_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'frontend', 'build', 'static')
+    
+    return send_from_directory(static_folder, filename)
+
+@main_bp.route('/debug-static-path')
+def debug_static_path():
+    """Prints the exact static folder path and its contents."""
+    static_folder = os.path.join(build_folder, 'static')
+    
+    # Check if static folder exists
+    folder_exists = os.path.exists(static_folder)
+    
+    # List files if folder exists
+    file_list = os.listdir(static_folder) if folder_exists else "Folder not found"
+
+    return jsonify({
+        "static_folder_path": static_folder,
+        "folder_exists": folder_exists,
+        "files_inside_static": file_list
+    })
+
+# Serve React App (Default Route)
 @main_bp.route('/', defaults={'path': ''})
 @main_bp.route('/<path:path>')
-def serve_react(path):
-    """Serve the React frontend from the 'build' folder."""
-    build_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'frontend', 'build')
-
-    # If path is empty or requesting a specific file that exists, serve it
+def serve_frontend(path):
     if path and os.path.exists(os.path.join(build_folder, path)):
         return send_from_directory(build_folder, path)
-    
-    # Serve React's static folder
-    if path.startswith("static/"):
-        return send_from_directory(os.path.join(build_folder, "static"), path)
-    
-    # Otherwise, return React's `index.html` (for SPA routing)
     return send_from_directory(build_folder, 'index.html')
 
 @main_bp.route('/register', methods=['POST'])
