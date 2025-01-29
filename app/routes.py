@@ -1,6 +1,7 @@
+import os
 import jwt
 import uuid
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_from_directory
 from flask_bcrypt import Bcrypt
 from google.cloud import firestore
 from datetime import datetime, timedelta, timezone
@@ -27,12 +28,20 @@ def validate_token():
     except jwt.InvalidTokenError:
         return None, {'message': 'Invalid token'}, 401
 
-# Routes
-@main_bp.route('/', methods=['GET'])
-def home():
-    """Home route for the app."""
-    return jsonify({'message': 'Welcome to the Headway Check-In App API!'}), 200
+# ============================
+# 🏠 Serve React Frontend at `/`
+# ============================
+@main_bp.route('/', defaults={'path': ''})
+@main_bp.route('/<path:path>')
+def serve_react(path):
+    """Serve the React frontend from the 'build' folder."""
+    build_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'build')
 
+    # Check if the requested file exists in /build
+    if path and os.path.exists(os.path.join(build_folder, path)):
+        return send_from_directory(build_folder, path)
+    else:
+        return send_from_directory(build_folder, 'index.html')
 
 @main_bp.route('/register', methods=['POST'])
 def register():
