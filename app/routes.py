@@ -41,6 +41,10 @@ def serve_react(path):
     if path and os.path.exists(os.path.join(build_folder, path)):
         return send_from_directory(build_folder, path)
     
+    # Serve React's static folder
+    if path.startswith("static/"):
+        return send_from_directory(os.path.join(build_folder, "static"), path)
+    
     # Otherwise, return React's `index.html` (for SPA routing)
     return send_from_directory(build_folder, 'index.html')
 

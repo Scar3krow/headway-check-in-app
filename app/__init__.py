@@ -10,10 +10,15 @@ from firebase_admin import credentials
 
 bcrypt = Bcrypt()
 
-# ✅ Use Render Secret File Path
-CREDENTIALS_PATH = "/etc/secrets/secret_key.json"
+# ✅ Detect if running in Render or Locally
+if os.getenv("RENDER"):
+    # Running on Render → Use secret file in /etc/secrets/
+    CREDENTIALS_PATH = "/etc/secrets/secret_key.json"
+else:
+    # Running Locally → Look for secret_key.json in the `app` folder
+    CREDENTIALS_PATH = os.path.join(os.path.dirname(__file__), "secret_key.json")
 
-# ✅ Ensure the file exists before proceeding
+# ✅ Ensure the credentials file exists
 if not os.path.exists(CREDENTIALS_PATH):
     raise RuntimeError(f"Missing Firebase credentials file at {CREDENTIALS_PATH}")
 
