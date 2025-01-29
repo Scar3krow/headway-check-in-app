@@ -28,6 +28,11 @@ def validate_token():
         return None, {'message': 'Invalid token'}, 401
 
 # Routes
+@main_bp.route('/', methods=['GET'])
+def home():
+    """Home route for the app."""
+    return jsonify({'message': 'Welcome to the Headway Check-In App API!'}), 200
+
 
 @main_bp.route('/register', methods=['POST'])
 def register():
