@@ -5,24 +5,27 @@ from flask_bcrypt import Bcrypt
 from flask_cors import CORS
 from google.cloud import firestore
 from google.oauth2 import service_account
-from firebase_admin import credentials, initialize_app
+import firebase_admin
+from firebase_admin import credentials
 
 bcrypt = Bcrypt()
 
-# ✅ Use the Render Secret File Path
+# ✅ Use Render Secret File Path
 CREDENTIALS_PATH = "/etc/secrets/secret_key.json"
 
 # ✅ Ensure the file exists before proceeding
 if not os.path.exists(CREDENTIALS_PATH):
     raise RuntimeError(f"Missing Firebase credentials file at {CREDENTIALS_PATH}")
 
-# ✅ Load Firebase Credentials Correctly
-credentials = service_account.Credentials.from_service_account_file(CREDENTIALS_PATH)
-db = firestore.Client(credentials=credentials)
+# ✅ Load Google Service Account Credentials
+cred = service_account.Credentials.from_service_account_file(CREDENTIALS_PATH)
 
-# ✅ Initialize Firebase Admin SDK
-cred = credentials.Certificate(CREDENTIALS_PATH)
-initialize_app(cred)
+# ✅ Initialize Firebase Admin SDK (only if not already initialized)
+if not firebase_admin._apps:
+    firebase_admin.initialize_app(credentials.Certificate(CREDENTIALS_PATH))
+
+# ✅ Firestore Initialization
+db = firestore.Client(credentials=cred)
 
 def create_app():
     app = Flask(__name__)
