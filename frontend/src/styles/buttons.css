@@ -1,0 +1,49 @@
+.dashboard-button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 16px;
+    cursor: pointer;
+    margin: 0 10px;
+    color: white;
+    background-color: #353d5f;
+    transition: background-color 0.3s, transform 0.2s;
+}
+
+.dashboard-button:hover {
+    transform: scale(1.05);
+    filter: brightness(1.1);
+    background-color: #7e8cbe;
+}
+
+.dashboard-button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.dashboard-button.secondary {
+    background-color: #353d5f;
+}
+
+.dashboard-button.secondary:hover {
+    background-color: #2c3450;
+}
+
+.dashboard-button.danger {
+    background-color: #f44336;
+    color: white;
+}
+
+.dashboard-button.danger:hover {
+    background-color: #d32f2f;
+}
+
+/* Add responsiveness */
+@media (max-width: 768px) {
+    .dashboard-button {
+        width: 100%;
+        font-size: 14px;
+        margin: 10px 0;
+    }
+}

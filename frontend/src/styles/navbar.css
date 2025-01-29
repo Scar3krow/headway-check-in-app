@@ -1,0 +1,86 @@
+/* Navbar Container */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: #353d5f;
+    color: white;
+    position: relative;
+}
+
+/* Navbar Title */
+.navbar-title {
+    font-size: 24px;
+    font-weight: bold;
+    color: white;
+}
+
+/* Navbar Links */
+.nav-links {
+    display: flex;
+    gap: 15px;
+}
+
+.nav-button {
+    background-color: white;
+    color: #353d5f;
+    border: none;
+    padding: 10px 15px;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.nav-button:hover {
+    background-color: #7e8cbe;
+    color: white;
+}
+
+/* Navbar Toggle Button (Visible on Small Screens) */
+.navbar-toggle {
+    display: none; /* Hidden by default */
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    z-index: 1100;
+}
+
+/* Dropdown Menu (Small Screens) */
+.nav-links.open {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: absolute;
+    top: 60px;
+    left: 0;
+    width: 100vw; /* Full viewport width */
+    background-color: #353d5f;
+    padding: 15px;
+    border-radius: 0 0 10px 10px;
+    z-index: 1000;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.nav-links.open .nav-button {
+    text-align: center;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .nav-links {
+        display: none; /* Hidden by default */
+    }
+
+    .navbar-toggle {
+        display: block; /* Show toggle button */
+    }
+
+    .nav-links.open {
+        display: flex; /* Show dropdown when open */
+    }
+}

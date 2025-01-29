@@ -1,0 +1,44 @@
+/* Graph Container */
+.graph-container {
+    width: 100%;
+    max-width: 900px;
+    margin: 20px auto;
+    padding: 20px;
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Graph Title */
+.graph-title {
+    font-size: 20px;
+    font-weight: bold;
+    color: #353d5f;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+/* Graph Wrapper with Constrained Height */
+.graph-wrapper {
+    width: 100%;
+    height: 500px; /* Constrain max height to 500px */
+    overflow: hidden; /* Ensure no overflow if the graph exceeds bounds */
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .graph-container {
+        padding: 15px;
+    }
+
+    .graph-title {
+        font-size: 18px;
+    }
+
+    .graph-wrapper {
+        height: 400px; /* Reduce height on smaller screens */
+    }
+}

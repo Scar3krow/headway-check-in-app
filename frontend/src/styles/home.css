@@ -1,0 +1,29 @@
+.home-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding-top: 50px;
+}
+
+.home-title {
+    font-size: 36px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 20px;
+}
+
+.home-description {
+    font-size: 18px;
+    color: #555;
+    margin-bottom: 40px;
+    line-height: 1.5;
+    max-width: 600px;
+    text-align: center;
+}
+
+.home-buttons {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+}

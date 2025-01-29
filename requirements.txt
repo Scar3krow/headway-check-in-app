@@ -1,0 +1,18 @@
+flask
+flask-sqlalchemy           # ORM support for databases
+gunicorn                   # WSGI server for running the app on Heroku
+psycopg2-binary            # PostgreSQL database adapter (if using PostgreSQL)
+flask-bcrypt               # Password hashing and authentication
+flask-cors                 # Cross-Origin Resource Sharing (CORS) support
+google-cloud-firestore     # Firestore database client for Google Cloud
+google-cloud-storage       # Storage support for Google Cloud (if needed)
+google-auth                # Authentication for Google APIs
+google-auth-oauthlib       # OAuth support for Google services
+google-auth-httplib2       # Required for authenticated HTTP requests to Google APIs
+requests                   # Making API calls
+numpy                      # Useful for numerical operations (if needed)
+pandas                     # Data manipulation (if needed)
+psutil                     # System monitoring tools (optional but useful)
+python-dotenv              # For loading environment variables from a .env file
+werkzeug                   # Used for Flask utilities and security
+firebase-admin

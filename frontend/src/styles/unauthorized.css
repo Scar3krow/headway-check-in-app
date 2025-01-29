@@ -1,0 +1,26 @@
+/* Unauthorized Page Container */
+.unauthorized-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    padding: 20px;
+    text-align: center;
+    background-color: #f9f9f9;
+}
+
+/* Title Styling */
+.unauthorized-title {
+    font-size: 28px;
+    font-weight: bold;
+    color: #f44336;
+    margin-bottom: 20px;
+}
+
+/* Message Styling */
+.unauthorized-message {
+    font-size: 16px;
+    color: #555;
+    margin-bottom: 30px;
+}

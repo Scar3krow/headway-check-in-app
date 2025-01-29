@@ -1,0 +1,70 @@
+
+/* Questionnaire Form */
+.questionnaire-form {
+    display: flex;
+    flex-direction: column;
+    gap: 30px; /* Increased gap between questions */
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+/* Question Row */
+.question-row {
+    display: flex;
+    flex-direction: row; /* Place question and options side-by-side */
+    gap: 20px; /* Gap between question and answer choices */
+    align-items: center;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Question Left Section */
+.question-left {
+    flex: 1; /* Allow the question section to take up space */
+    max-width: 300px; /* Optional: Constrain question width */
+}
+
+/* Question Text */
+.question-text {
+    font-size: 18px;
+    font-weight: bold;
+    color: #333;
+    text-align: left;
+}
+
+/* Likert Options */
+.likert-options {
+    flex: 2; /* Allow the options section to grow */
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+/* Likert Option */
+.likert-option {
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    color: #555;
+    transition: color 0.3s ease;
+    display: inline-block;
+}
+
+/* Selected State */
+.likert-option input[type="radio"]:checked + .likert-label {
+    color: #4caf50; /* Green color when selected */
+}
+
+/* Hover State */
+.likert-option:hover .likert-label {
+    color: #4caf50;
+}
+
+/* Hide Radio Button */
+.likert-option input[type="radio"] {
+    display: none;
+}

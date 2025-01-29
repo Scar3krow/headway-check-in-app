@@ -1,0 +1,170 @@
+.form-container {
+    max-width: 400px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.form-group {
+    margin-bottom: 15px;
+    text-align: left;
+}
+
+input,
+select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    outline: none;
+}
+
+input:focus,
+select:focus {
+    border-color: #4caf50;
+    box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+}
+
+/* Form Input */
+.form-input {
+    width: 100%;
+    padding: 8px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    outline: none;
+    transition: border-color 0.3s;
+}
+
+.form-input:focus {
+    border-color: #4caf50;
+    box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+}
+
+/* Form Button */
+.form-button {
+    background-color: #353d5f;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 20px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.form-button:hover {
+    background-color: #7e8cbe;
+    transform: scale(1.05);
+    filter: brightness(1.1);
+}
+
+/* Form Title */
+.form-title {
+    font-size: 24px;
+    font-weight: bold;
+    color: #353d5f;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+/* Form Select */
+.form-select {
+    width: 100%;
+    padding: 8px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    outline: none;
+    transition: border-color 0.3s;
+}
+
+.form-select:focus {
+    border-color: #4caf50;
+    box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+}
+
+/* Form Actions (Buttons) */
+.form-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+}
+
+/* Success and Error Messages */
+.error-message {
+    color: #f44336;
+    font-weight: bold;
+    text-align: center;
+    margin-top: 15px;
+}
+
+.success-message {
+    color: #4caf50;
+    font-weight: bold;
+    text-align: center;
+    margin-top: 15px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .form-container {
+        max-width: 90%;
+        padding: 15px;
+    }
+
+    input,
+    select {
+        font-size: 12px;
+        padding: 6px;
+    }
+
+    .form-button {
+        width: 100%;
+        padding: 10px;
+    }
+
+    .form-actions {
+        flex-direction: column;
+        gap: 10px;
+    }
+}
+
+/* Loading Message */
+.loading-message {
+    font-size: 16px;
+    color: #6c757d;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+/* Form Question Label */
+.form-question {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 5px;
+    display: block;
+}
+
+/* Dynamic Message */
+.message {
+    margin-top: 15px;
+    text-align: center;
+    font-size: 16px;
+}
+
+.message.success-message {
+    color: #4caf50;
+    font-weight: bold;
+}
+
+.message.error-message {
+    color: #f44336;
+    font-weight: bold;
+}
+

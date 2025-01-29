@@ -1,0 +1,19 @@
+.questionnaire-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.question-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 15px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+}
+
+.likert-options {
+    display: flex;
+    gap: 10px;
+}
