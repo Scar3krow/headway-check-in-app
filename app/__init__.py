@@ -9,18 +9,20 @@ from firebase_admin import credentials, initialize_app
 
 bcrypt = Bcrypt()
 
-# Get Firebase credentials from an environment variable
-FIREBASE_CREDENTIALS_JSON = os.getenv("FIREBASE_CREDENTIALS")
+# ✅ Use the Render Secret File Path
+CREDENTIALS_PATH = "/etc/secrets/secret_key.json"
 
-if not FIREBASE_CREDENTIALS_JSON:
-    raise RuntimeError("Missing FIREBASE_CREDENTIALS environment variable.")
+# ✅ Ensure the file exists before proceeding
+if not os.path.exists(CREDENTIALS_PATH):
+    raise RuntimeError(f"Missing Firebase credentials file at {CREDENTIALS_PATH}")
 
-# Convert the environment variable back into a dictionary
-firebase_credentials = json.loads(FIREBASE_CREDENTIALS_JSON)
-
-# Initialize Firestore and Firebase Admin SDK
-credentials = service_account.Credentials.from_service_account_info(firebase_credentials)
+# ✅ Load Firebase Credentials Correctly
+credentials = service_account.Credentials.from_service_account_file(CREDENTIALS_PATH)
 db = firestore.Client(credentials=credentials)
+
+# ✅ Initialize Firebase Admin SDK
+cred = credentials.Certificate(CREDENTIALS_PATH)
+initialize_app(cred)
 
 def create_app():
     app = Flask(__name__)
