@@ -29,7 +29,7 @@ def validate_token():
         return None, {'message': 'Invalid token'}, 401
 
 # ============================
-# 🏠 Serve React Frontend at `/`
+#  Serve React Frontend at `/`
 # ============================
 @main_bp.route('/', defaults={'path': ''})
 @main_bp.route('/<path:path>')
@@ -37,11 +37,12 @@ def serve_react(path):
     """Serve the React frontend from the 'build' folder."""
     build_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'build')
 
-    # Check if the requested file exists in /build
+    # If path is empty or requesting a specific file that exists, serve it
     if path and os.path.exists(os.path.join(build_folder, path)):
         return send_from_directory(build_folder, path)
-    else:
-        return send_from_directory(build_folder, 'index.html')
+    
+    # Otherwise, return React's `index.html` (for SPA routing)
+    return send_from_directory(build_folder, 'index.html')
 
 @main_bp.route('/register', methods=['POST'])
 def register():

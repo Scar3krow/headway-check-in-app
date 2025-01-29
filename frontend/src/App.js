@@ -45,7 +45,10 @@ function App() {
             <div>
                 <Navbar />
                 <Routes>
+                    {/* Ensure React Router uses "*" to catch all routes */}
                     <Route path="/" element={<Home />} />
+                    <Route path="*" element={<Home />} /> 
+
                     <Route path="/register" element={<Register />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/logout" element={<Logout />} />
