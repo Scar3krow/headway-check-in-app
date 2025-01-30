@@ -1,7 +1,7 @@
 import os
 import jwt
 import uuid
-from flask import Blueprint, request, jsonify, send_from_directory, redirect
+from flask import Blueprint, request, jsonify, make_response, redirect
 from flask_bcrypt import Bcrypt
 from google.cloud import firestore
 from datetime import datetime, timedelta, timezone
@@ -17,6 +17,14 @@ FRONTEND_URL = "https://headway-check-in-app-1.onrender.com"
 API_PREFIXES = ("/api/", "/register", "/login", "/questions", "/submit-responses", "/past-responses")
 
 SECRET_KEY = "Headway50!"  # Replace with a strong, unique key
+
+def cors_enabled_response(data, status=200):
+    """Wraps responses with proper CORS headers"""
+    response = make_response(jsonify(data), status)
+    response.headers["Access-Control-Allow-Origin"] = FRONTEND_URL
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    return response
 
 # ✅ Token Validation Function
 def validate_token():
@@ -49,17 +57,16 @@ def register():
     last_name = data.get('last_name', '').strip().capitalize()
     email = data.get('email', '').strip().lower()
     password = data.get('password')
-    role = data.get('role', 'client')  # Default role is 'client'
-    invite_code = data.get('invite_code', '').strip()  # For clinicians/admins
-    assigned_clinician_id = data.get('assigned_clinician_id')  # For clients
+    role = data.get('role', 'client')
+    invite_code = data.get('invite_code', '').strip()
+    assigned_clinician_id = data.get('assigned_clinician_id')
 
     # Validate required fields
     if not first_name or not last_name or not password or not email:
-        return jsonify({'message': 'All fields are required.'}), 400
+        return cors_enabled_response({'message': 'All fields are required.'}, 400)
 
-    # Validate role
     if role not in ['client', 'clinician', 'admin']:
-        return jsonify({'message': 'Invalid role specified.'}), 400
+        return cors_enabled_response({'message': 'Invalid role specified.'}, 400)
 
     # Password validation
     errors = []
@@ -69,38 +76,31 @@ def register():
         errors.append("Password must contain at least one digit or special character.")
 
     if errors:
-        return jsonify({'message': " ".join(errors)}), 400
+        return cors_enabled_response({'message': " ".join(errors)}, 400)
 
-    # Check if email is already registered
     users_ref = db.collection('users')
     if users_ref.where('email', '==', email).get():
-        return jsonify({'message': 'Email already registered'}), 400
+        return cors_enabled_response({'message': 'Email already registered'}, 400)
 
-    # Validate invite code for clinicians/admins
     if role in ['clinician', 'admin']:
         if not invite_code:
-            return jsonify({'message': 'Invite code is required for this role.'}), 400
+            return cors_enabled_response({'message': 'Invite code is required for this role.'}, 400)
 
-        # Verify invite code in Firestore
         try:
             invites_ref = db.collection('invites').where('invite_code', '==', invite_code).where('role', '==', role).stream()
-            invite = next(invites_ref)  # Get the first matching invite
+            invite = next(invites_ref)
             invite_data = invite.to_dict()
 
-            # Check if invite is already used
             if invite_data.get('used', False):
-                return jsonify({'message': 'This invite code has already been used.'}), 400
+                return cors_enabled_response({'message': 'This invite code has already been used.'}, 400)
 
-            # Mark invite code as used
             db.collection('invites').document(invite.id).update({'used': True})
         except StopIteration:
-            return jsonify({'message': 'Invalid or expired invite code.'}), 400
+            return cors_enabled_response({'message': 'Invalid or expired invite code.'}, 400)
 
-    # Ensure clients have an assigned clinician
     if role == 'client' and not assigned_clinician_id:
-        return jsonify({'message': 'Assigned clinician ID is required for clients.'}), 400
+        return cors_enabled_response({'message': 'Assigned clinician ID is required for clients.'}, 400)
 
-    # Hash the password and save the user
     hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
     user_ref = users_ref.add({
         'first_name': first_name,
@@ -111,21 +111,14 @@ def register():
         'assigned_clinician_id': assigned_clinician_id if role == 'client' else None,
     })
 
-    user_id = user_ref[1].id  # Firestore's auto-generated document ID
+    user_id = user_ref[1].id
 
-    # Add the user to the corresponding collection
     if role == 'clinician':
-        db.collection('clinicians').document(user_id).set({
-            'id': user_id,
-            'name': f"{first_name} {last_name}"
-        })
+        db.collection('clinicians').document(user_id).set({'id': user_id, 'name': f"{first_name} {last_name}"})
     elif role == 'admin':
-        db.collection('admins').document(user_id).set({
-            'id': user_id,
-            'name': f"{first_name} {last_name}"
-        })
+        db.collection('admins').document(user_id).set({'id': user_id, 'name': f"{first_name} {last_name}"})
 
-    return jsonify({'message': 'User registered successfully', 'role': role}), 201
+    return cors_enabled_response({'message': 'User registered successfully', 'role': role}, 201)
 
 
 @main_bp.route('/login', methods=['POST'])
@@ -142,19 +135,18 @@ def login():
         user_data = user_doc.to_dict()
         if bcrypt.check_password_hash(user_data['password'], password):
             token_payload = {
-                'id': user_doc.id,  # Include user ID in token payload
+                'id': user_doc.id,
                 'role': user_data['role'],
-                'exp': datetime.utcnow() + timedelta(hours=48)  # Token expires in 48 hours
+                'exp': datetime.utcnow() + timedelta(hours=48),
             }
             access_token = jwt.encode(token_payload, SECRET_KEY, algorithm="HS256")
-            return jsonify({
+            return cors_enabled_response({
                 'access_token': access_token,
                 'role': user_data['role'],
-                'user_id': user_doc.id  # Include user_id in response
-            }), 200
+                'user_id': user_doc.id,
+            }, 200)
 
-    return jsonify({'message': 'Invalid credentials'}), 401
-
+    return cors_enabled_response({'message': 'Invalid credentials'}, 401)
 
 @main_bp.route('/questions', methods=['GET'])
 def get_questions():

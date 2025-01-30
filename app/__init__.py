@@ -41,8 +41,8 @@ def create_app():
     # Configuration
     app.config['CORS_HEADERS'] = 'Content-Type'
 
-    frontend_origin = os.getenv("FRONTEND_URL", "http://localhost:3000")
-    CORS(app, resources={r"/*": {"origins": frontend_origin}})
+    FRONTEND_URL = "https://headway-check-in-app-1.onrender.com"
+    CORS(app, resources={r"/*": {"origins": [FRONTEND_URL, "http://localhost:3000"]}})
     bcrypt.init_app(app)
 
     # Register routes
