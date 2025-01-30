@@ -32,7 +32,8 @@ const ProtectedRoute = ({ element, roleRequired }) => {
         return <Navigate to="/login" replace />;
     }
 
-    if (roleRequired && role !== roleRequired) {
+    // Allow multiple roles if `roleRequired` is an array
+    if (roleRequired && ![].concat(roleRequired).includes(role)) {
         return <Navigate to="/unauthorized" replace />;
     }
 
@@ -74,7 +75,7 @@ function App() {
                     <Route path="/remove-admin" element={<ProtectedRoute element={<RemoveAdminPage />} roleRequired="admin" />} />
 
                     {/* Mixed Roles (Accessible by Multiple Roles) */}
-                    <Route path="/forms" element={<ProtectedRoute element={<Form />} roleRequired="client" />} />
+                    <Route path="/forms" element={<ProtectedRoute element={<Form />} roleRequired={["client", "clinician"]} />} />
                     <Route path="/client/:userId" element={<ProtectedRoute element={<ClientDataPage />} roleRequired="clinician" />} />
                     <Route path="/search-results" element={<ProtectedRoute element={<SearchResultsPage />} roleRequired="clinician" />} />
                 </Routes>

@@ -237,6 +237,33 @@ def submit_answer():
     return cors_enabled_response({'message': 'Answer submitted successfully'}, 201)
 
 
+@main_bp.route('/session-details', methods=['GET'])
+def session_details():
+    """Fetch session details by session_id."""
+    decoded_token, error_response, status_code = validate_token()
+    if error_response:
+        return cors_enabled_response(error_response, status_code)
+
+    session_id = request.args.get('session_id')
+    if not session_id:
+        return cors_enabled_response({'message': 'Session ID is required'}, 400)
+
+    responses_ref = db.collection('responses').where('session_id', '==', session_id).stream()
+    responses = []
+    for r in responses_ref:
+        response_data = r.to_dict()
+        responses.append({
+            'question_id': response_data.get('question_id'),
+            'response_value': response_data.get('response_value'),
+            'timestamp': response_data.get('timestamp').isoformat() if response_data.get('timestamp') else None,
+        })
+
+    if not responses:
+        return cors_enabled_response({'message': 'No responses found for this session'}, 404)
+
+    return cors_enabled_response(responses, 200)
+
+
 @main_bp.route('/search-users', methods=['GET'])
 def search_users():
     """Search users by first name or last name."""
