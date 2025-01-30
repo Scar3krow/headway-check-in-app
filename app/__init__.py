@@ -41,8 +41,8 @@ def create_app():
     # Configuration
     app.config['CORS_HEADERS'] = 'Content-Type'
 
-    # Enable CORS
-    CORS(app, resources={r"/api/*": {"origins": ["http://localhost:3000", "https://your-frontend.onrender.com"]}})
+    frontend_origin = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    CORS(app, resources={r"/*": {"origins": frontend_origin}})
     bcrypt.init_app(app)
 
     # Register routes
