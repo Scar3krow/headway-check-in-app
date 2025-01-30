@@ -4,6 +4,9 @@ import axios from "axios";
 import "../styles/global.css"; // Consolidated global styles
 import "../styles/forms.css"; // Retaining form-specific styles
 
+// 🔥 Dynamically Set API URL (Works in both Local & Live Deployments)
+const API_URL = process.env.REACT_APP_API_URL || "http://127.0.0.1:5000";
+
 const Login = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -34,7 +37,7 @@ const Login = () => {
         }
 
         try {
-            const response = await axios.post("http://127.0.0.1:5000/login", {
+            const response = await axios.post(`${API_URL}/login`, {  // 👈 Uses API_URL
                 email,
                 password,
             });

@@ -13,7 +13,9 @@ db = firestore.Client()
 
 # 🔥 Path to React's build folder
 FRONTEND_BUILD_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend", "build"))
-STATIC_FOLDER_PATH = os.path.join(FRONTEND_BUILD_PATH, "static")
+
+# ✅ Ensure API calls are handled properly
+API_PREFIXES = ("/api/", "/register", "/login", "/questions", "/submit-responses", "/past-responses")
 
 SECRET_KEY = "Headway50!"  # Replace with a strong, unique key
 
@@ -33,34 +35,21 @@ def validate_token():
         return None, {"message": "Invalid token"}, 401
 
 
-# ✅ Serve Static Files (JS, CSS, Images)
-@main_bp.route("/static/<path:filename>")
-def serve_static_files(filename):
-    """Serve React's static files manually if needed."""
-    requested_file_path = os.path.join(STATIC_FOLDER_PATH, filename)
-
-    # Debugging Output
-    print(f"🔎 Looking for Static File: {requested_file_path}")
-
-    if not os.path.exists(requested_file_path):
-        return jsonify({"error": "Static file NOT FOUND", "requested_file": filename}), 404
-
-    return send_from_directory(STATIC_FOLDER_PATH, filename)
-
-
-# ✅ Serve React Frontend (`index.html` for any route)
+# ✅ FIX: Only serve React frontend if the request is NOT for an API route
 @main_bp.route("/", defaults={"path": ""})
 @main_bp.route("/<path:path>")
 def serve_react_frontend(path):
-    """Serve React frontend from the build folder."""
-    print(f"📁 Serving React App from: {FRONTEND_BUILD_PATH}")
-
-    # Serve static files if the requested path exists
-    if path and os.path.exists(os.path.join(FRONTEND_BUILD_PATH, path)):
-        return send_from_directory(FRONTEND_BUILD_PATH, path)
-
-    # Otherwise, return index.html (React handles routing)
+    """Serve React frontend, except for API routes."""
+    if any(path.startswith(prefix.lstrip("/")) for prefix in API_PREFIXES):
+        return jsonify({"error": "Invalid API call, check your frontend API URL"}), 404
+    
     return send_from_directory(FRONTEND_BUILD_PATH, "index.html")
+
+# ✅ FIX: Ensure static files (JS, CSS) load correctly
+@main_bp.route("/static/<path:filename>")
+def serve_static_files(filename):
+    """Serve static files like JS, CSS, images."""
+    return send_from_directory(os.path.join(FRONTEND_BUILD_PATH, "static"), filename)
 
 @main_bp.route('/register', methods=['POST'])
 def register():

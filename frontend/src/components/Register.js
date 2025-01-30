@@ -29,7 +29,7 @@ const Register = () => {
         const fetchClinicians = async () => {
             try {
                 const token = localStorage.getItem("token");
-                const response = await axios.get("http://127.0.0.1:5000/get-clinicians", {
+                const response = await axios.get(`${API_URL}/get-clinicians`, {  // 👈 Uses API_URL
                     headers: { Authorization: `Bearer ${token}` },
                 });
 
@@ -121,7 +121,7 @@ const Register = () => {
 
         try {
             if (role === "clinician" || role === "admin") {
-                const inviteResponse = await axios.post("http://127.0.0.1:5000/validate-invite", {
+                const inviteResponse = await axios.post(`${API_URL}/validate-invite`, {  // 👈 Uses API_URL
                     invite_code: inviteCode,
                 });
 
@@ -131,7 +131,7 @@ const Register = () => {
                 }
             }
 
-            await axios.post("http://127.0.0.1:5000/register", {
+            await axios.post(`${API_URL}/register`, {  // 👈 Uses API_URL
                 first_name: firstName,
                 last_name: lastName,
                 email,
