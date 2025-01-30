@@ -35,6 +35,9 @@ db = firestore.Client(credentials=cred)
 def create_app():
     app = Flask(__name__)
 
+    # Enable Debug Mode 🔥
+    app.config["DEBUG"] = True
+
     # Configuration
     app.config['CORS_HEADERS'] = 'Content-Type'
 

@@ -7,65 +7,60 @@ from google.cloud import firestore
 from datetime import datetime, timedelta, timezone
 from firebase_admin import firestore
 
-
 bcrypt = Bcrypt()
 main_bp = Blueprint('main', __name__)
 db = firestore.Client()
 
-# 🔥 Ensure we serve from the correct React build directory
-build_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'frontend', 'build')
+# 🔥 Path to React's build folder
+FRONTEND_BUILD_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend", "build"))
+STATIC_FOLDER_PATH = os.path.join(FRONTEND_BUILD_PATH, "static")
 
-SECRET_KEY = 'Headway50!'  # Replace with a strong, unique key
+SECRET_KEY = "Headway50!"  # Replace with a strong, unique key
 
-print(f"Checking static folder: {os.path.join(build_folder, 'static')}")
-print(f"Files in /static/: {os.listdir(os.path.join(build_folder, 'static')) if os.path.exists(os.path.join(build_folder, 'static')) else 'Does not exist'}")
-
-# Utility function for validating tokens
+# ✅ Token Validation Function
 def validate_token():
-    auth_header = request.headers.get('Authorization')
-    if not auth_header or not auth_header.startswith('Bearer '):
-        return None, {'message': 'Missing or invalid token'}, 401
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return None, {"message": "Missing or invalid token"}, 401
 
-    token = auth_header.split(' ')[1]
+    token = auth_header.split(" ")[1]
     try:
         decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         return decoded_token, None, None
     except jwt.ExpiredSignatureError:
-        return None, {'message': 'Token expired'}, 401
+        return None, {"message": "Token expired"}, 401
     except jwt.InvalidTokenError:
-        return None, {'message': 'Invalid token'}, 401
+        return None, {"message": "Invalid token"}, 401
 
-@main_bp.route('/static/<path:filename>')
-def serve_static(filename):
-    """Manually serve static files if Flask isn't doing it automatically."""
-    static_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'frontend', 'build', 'static')
-    
-    return send_from_directory(static_folder, filename)
 
-@main_bp.route('/debug-static-path')
-def debug_static_path():
-    """Prints the exact static folder path and its contents."""
-    static_folder = os.path.join(build_folder, 'static')
-    
-    # Check if static folder exists
-    folder_exists = os.path.exists(static_folder)
-    
-    # List files if folder exists
-    file_list = os.listdir(static_folder) if folder_exists else "Folder not found"
+# ✅ Serve Static Files (JS, CSS, Images)
+@main_bp.route("/static/<path:filename>")
+def serve_static_files(filename):
+    """Serve React's static files manually if needed."""
+    requested_file_path = os.path.join(STATIC_FOLDER_PATH, filename)
 
-    return jsonify({
-        "static_folder_path": static_folder,
-        "folder_exists": folder_exists,
-        "files_inside_static": file_list
-    })
+    # Debugging Output
+    print(f"🔎 Looking for Static File: {requested_file_path}")
 
-# Serve React App (Default Route)
-@main_bp.route('/', defaults={'path': ''})
-@main_bp.route('/<path:path>')
-def serve_frontend(path):
-    if path and os.path.exists(os.path.join(build_folder, path)):
-        return send_from_directory(build_folder, path)
-    return send_from_directory(build_folder, 'index.html')
+    if not os.path.exists(requested_file_path):
+        return jsonify({"error": "Static file NOT FOUND", "requested_file": filename}), 404
+
+    return send_from_directory(STATIC_FOLDER_PATH, filename)
+
+
+# ✅ Serve React Frontend (`index.html` for any route)
+@main_bp.route("/", defaults={"path": ""})
+@main_bp.route("/<path:path>")
+def serve_react_frontend(path):
+    """Serve React frontend from the build folder."""
+    print(f"📁 Serving React App from: {FRONTEND_BUILD_PATH}")
+
+    # Serve static files if the requested path exists
+    if path and os.path.exists(os.path.join(FRONTEND_BUILD_PATH, path)):
+        return send_from_directory(FRONTEND_BUILD_PATH, path)
+
+    # Otherwise, return index.html (React handles routing)
+    return send_from_directory(FRONTEND_BUILD_PATH, "index.html")
 
 @main_bp.route('/register', methods=['POST'])
 def register():
