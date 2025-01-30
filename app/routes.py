@@ -1,7 +1,7 @@
 import os
 import jwt
 import uuid
-from flask import Blueprint, request, jsonify, send_from_directory
+from flask import Blueprint, request, jsonify, send_from_directory, redirect
 from flask_bcrypt import Bcrypt
 from google.cloud import firestore
 from datetime import datetime, timedelta, timezone
@@ -11,8 +11,7 @@ bcrypt = Bcrypt()
 main_bp = Blueprint('main', __name__)
 db = firestore.Client()
 
-# 🔥 Path to React's build folder
-FRONTEND_BUILD_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend", "build"))
+FRONTEND_URL = "https://headway-check-in-app-1.onrender.com"
 
 # ✅ Ensure API calls are handled properly
 API_PREFIXES = ("/api/", "/register", "/login", "/questions", "/submit-responses", "/past-responses")
@@ -35,21 +34,12 @@ def validate_token():
         return None, {"message": "Invalid token"}, 401
 
 
-# ✅ FIX: Only serve React frontend if the request is NOT for an API route
 @main_bp.route("/", defaults={"path": ""})
 @main_bp.route("/<path:path>")
-def serve_react_frontend(path):
-    """Serve React frontend, except for API routes."""
-    if any(path.startswith(prefix.lstrip("/")) for prefix in API_PREFIXES):
-        return jsonify({"error": "Invalid API call, check your frontend API URL"}), 404
-    
-    return send_from_directory(FRONTEND_BUILD_PATH, "index.html")
+def redirect_to_frontend(path):
+    """Redirects all frontend requests to the React app hosted separately."""
+    return redirect(f"{FRONTEND_URL}/{path}")
 
-# ✅ FIX: Ensure static files (JS, CSS) load correctly
-@main_bp.route("/static/<path:filename>")
-def serve_static_files(filename):
-    """Serve static files like JS, CSS, images."""
-    return send_from_directory(os.path.join(FRONTEND_BUILD_PATH, "static"), filename)
 
 @main_bp.route('/register', methods=['POST'])
 def register():
