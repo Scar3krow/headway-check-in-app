@@ -31,7 +31,7 @@ const SessionDetailsPage = () => {
                     fetch(`${API_URL}/session-details?session_id=${sessionId}`, {
                         headers: { Authorization: `Bearer ${token}` },
                     }),
-                    fetch('${API_URL}/questions', {
+                    fetch(`${API_URL}/questions`, {
                         headers: { Authorization: `Bearer ${token}` },
                     }),
                 ]);
