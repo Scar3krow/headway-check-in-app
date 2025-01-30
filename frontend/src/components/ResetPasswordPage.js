@@ -4,6 +4,8 @@ import axios from "axios";
 import "../styles/global.css"; // Consolidated global styles
 import "../styles/forms.css"; // Form-specific styles
 
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000"
+
 const ResetPassword = () => {
     const { token } = useParams();
     const [password, setPassword] = useState("");
@@ -18,7 +20,7 @@ const ResetPassword = () => {
         }
 
         try {
-            await axios.post("http://127.0.0.1:5000/reset-password", { token, password });
+            await axios.post('${API_URL}/reset-password', { token, password });
             setMessage("Your password has been reset successfully.");
         } catch (error) {
             setMessage("An error occurred. Please try again.");

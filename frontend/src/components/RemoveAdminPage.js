@@ -4,6 +4,8 @@ import axios from "axios";
 import "../styles/global.css"; // Consolidated global styles
 import "../styles/forms.css"; // Form-specific styles
 
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000"
+
 const RemoveAdminPage = () => {
     const [admins, setAdmins] = useState([]);
     const [selectedAdminId, setSelectedAdminId] = useState("");
@@ -15,7 +17,7 @@ const RemoveAdminPage = () => {
         const fetchAdmins = async () => {
             try {
                 const token = localStorage.getItem("token");
-                const response = await axios.get("http://127.0.0.1:5000/get-admins", {
+                const response = await axios.get(`${API_URL}/get-admins`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
 
@@ -46,7 +48,7 @@ const RemoveAdminPage = () => {
         try {
             const token = localStorage.getItem("token");
             await axios.post(
-                "http://127.0.0.1:5000/remove-admin",
+                `${API_URL}/remove-admin`,
                 { admin_id: selectedAdminId },
                 { headers: { Authorization: `Bearer ${token}` } }
             );

@@ -5,6 +5,8 @@ import "../styles/dashboard.css"; // Dashboard-specific styles
 import "../styles/table.css"; // Shared table styles
 import ClinicianGraph from "./ClinicianGraph"; // For the graph display
 
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000"
+
 const ClientResultsPage = () => {
     const { userId } = useParams();
     const [clientName, setClientName] = useState("");
@@ -21,7 +23,7 @@ const ClientResultsPage = () => {
             
                 // Fetch client info
                 const userInfoResponse = await fetch(
-                    `http://127.0.0.1:5000/user-info?user_id=${userId}`,
+                    `${API_URL}/user-info?user_id=${userId}`,
                     {
                         headers: { Authorization: `Bearer ${token}` },
                     }
@@ -36,7 +38,7 @@ const ClientResultsPage = () => {
             
                 // Fetch past responses
                 const responsesResponse = await fetch(
-                    `http://127.0.0.1:5000/past-responses?user_id=${userId}`,
+                    `${API_URL}/past-responses?user_id=${userId}`,
                     {
                         headers: { Authorization: `Bearer ${token}` },
                     }

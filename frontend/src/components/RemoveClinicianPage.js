@@ -4,6 +4,8 @@ import axios from "axios";
 import "../styles/global.css"; // Consolidated global styles
 import "../styles/forms.css"; // Form-specific styles
 
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000"
+
 const RemoveClinicianPage = () => {
     const [clinicians, setClinicians] = useState([]);
     const [selectedClinicianId, setSelectedClinicianId] = useState("");
@@ -15,7 +17,7 @@ const RemoveClinicianPage = () => {
         const fetchClinicians = async () => {
             try {
                 const token = localStorage.getItem("token");
-                const response = await axios.get("http://127.0.0.1:5000/get-clinicians", {
+                const response = await axios.get('${API_URL}/get-clinicians', {
                     headers: { Authorization: `Bearer ${token}` },
                 });
 
@@ -46,7 +48,7 @@ const RemoveClinicianPage = () => {
         try {
             const token = localStorage.getItem("token");
             await axios.post(
-                "http://127.0.0.1:5000/remove-clinician",
+                '${API_URL}/remove-clinician',
                 { clinician_id: selectedClinicianId },
                 { headers: { Authorization: `Bearer ${token}` } }
             );

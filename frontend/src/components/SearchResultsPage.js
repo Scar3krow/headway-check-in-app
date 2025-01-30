@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import "../styles/global.css"; // Consolidated global styles
 import "../styles/dashboard.css"; // Dashboard-specific styles
 
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000"
+
 const SearchResultsPage = () => {
     const [searchResults, setSearchResults] = useState([]);
     const [errorMessage, setErrorMessage] = useState("");
@@ -16,7 +18,7 @@ const SearchResultsPage = () => {
             try {
                 const token = localStorage.getItem("token");
                 const response = await fetch(
-                    `http://127.0.0.1:5000/search-clients?query=${query}`,
+                    `${API_URL}/search-clients?query=${query}`,
                     {
                         headers: { Authorization: `Bearer ${token}` },
                     }

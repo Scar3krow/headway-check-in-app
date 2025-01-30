@@ -5,6 +5,8 @@ import "../styles/global.css";
 import "../styles/dashboard.css";
 import "../styles/buttons.css";
 
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+
 const AdminDashboard = () => {
     const [clinicianCode, setClinicianCode] = useState("");
     const [adminCode, setAdminCode] = useState("");
@@ -24,7 +26,7 @@ const AdminDashboard = () => {
         try {
             const token = localStorage.getItem("token");
             const response = await axios.post(
-                "http://127.0.0.1:5000/generate-invite",
+                `${API_URL}/generate-invite`,  // ✅ Use dynamic API URL
                 { role },
                 {
                     headers: { Authorization: `Bearer ${token}` },

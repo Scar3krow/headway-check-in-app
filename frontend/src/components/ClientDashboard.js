@@ -6,6 +6,8 @@ import "../styles/buttons.css";
 import "../styles/questionnaire.css";
 import "../styles/table.css";
 
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+
 const ClientDashboard = () => {
     const [isCheckInVisible, setIsCheckInVisible] = useState(false);
     const [questions, setQuestions] = useState([]);
@@ -26,7 +28,7 @@ const ClientDashboard = () => {
             }
 
             try {
-                const response = await fetch("http://127.0.0.1:5000/questions", {
+                const response = await fetch(`${API_URL}/questions`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
 
@@ -59,7 +61,7 @@ const ClientDashboard = () => {
         };
 
         try {
-            const response = await fetch("http://127.0.0.1:5000/submit-responses", {
+            const response = await fetch(`${API_URL}/submit-responses`, {  // ✅ Use dynamic API URL
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

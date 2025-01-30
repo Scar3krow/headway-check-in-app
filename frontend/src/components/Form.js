@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import '../styles/global.css'; // Consolidated global styles
 import '../styles/forms.css'; // Form-specific styles
 
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000"
+
 const Form = () => {
     const [questions, setQuestions] = useState([]);
     const [responses, setResponses] = useState({});
@@ -10,7 +12,7 @@ const Form = () => {
     useEffect(() => {
         const token = localStorage.getItem('token');
 
-        fetch('http://127.0.0.1:5000/questions', {
+        fetch(`${API_URL}/questions`, {
             headers: {
                 'Authorization': `Bearer ${token}`,
             },

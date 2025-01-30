@@ -6,6 +6,8 @@ import "../styles/forms.css"; // For form-specific styles
 import "../styles/table.css"; // For table-specific styles
 import "../styles/cliniciandata.css"; // Page-specific styles
 
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000"
+
 const ClinicianDataPage = () => {
     const [clinicians, setClinicians] = useState([]);
     const [selectedClinicianId, setSelectedClinicianId] = useState("");
@@ -17,9 +19,10 @@ const ClinicianDataPage = () => {
         const fetchClinicians = async () => {
             try {
                 const token = localStorage.getItem("token");
-                const response = await axios.get("http://127.0.0.1:5000/get-clinicians", {
+                const response = await axios.get(`${API_URL}/get-clinicians`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
+    
                 if (response.data.clinicians) {
                     setClinicians(response.data.clinicians);
                 } else {
@@ -30,20 +33,21 @@ const ClinicianDataPage = () => {
                 setError("Failed to fetch clinicians.");
             }
         };
+    
         fetchClinicians();
     }, []);
-
+    
     const handleClinicianChange = async (e) => {
         const clinicianId = e.target.value;
         setSelectedClinicianId(clinicianId);
-
+    
         try {
             const token = localStorage.getItem("token");
-            const response = await axios.get("http://127.0.0.1:5000/clinician-data", {
+            const response = await axios.get(`${API_URL}/clinician-data`, {
                 params: { clinician_id: clinicianId },
                 headers: { Authorization: `Bearer ${token}` },
             });
-
+    
             if (response.data) {
                 setStats(response.data);
                 setError(""); // Clear any previous errors

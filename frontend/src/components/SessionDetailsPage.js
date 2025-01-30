@@ -5,6 +5,8 @@ import "../styles/forms.css"; // For form-related layouts and messages
 import "../styles/table.css"; // Shared table styles
 import "../styles/sessiondetails.css"; // Specific to this page
 
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000"
+
 const SessionDetailsPage = () => {
     const { sessionId } = useParams();
     const [sessionDetails, setSessionDetails] = useState([]);
@@ -26,10 +28,10 @@ const SessionDetailsPage = () => {
                 const token = localStorage.getItem("token");
 
                 const [sessionResponse, questionsResponse] = await Promise.all([
-                    fetch(`http://127.0.0.1:5000/session-details?session_id=${sessionId}`, {
+                    fetch(`${API_URL}/session-details?session_id=${sessionId}`, {
                         headers: { Authorization: `Bearer ${token}` },
                     }),
-                    fetch("http://127.0.0.1:5000/questions", {
+                    fetch('${API_URL}/questions', {
                         headers: { Authorization: `Bearer ${token}` },
                     }),
                 ]);

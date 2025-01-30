@@ -6,6 +6,8 @@ import "../styles/table.css"; // Shared table styles
 import "../styles/dashboard.css"; // Dashboard-specific styles
 import "../styles/responsespage.css"; // Page-specific styles
 
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000"
+
 const ClientResponsesPage = () => {
     const [responsesTable, setResponsesTable] = useState({ rows: [], sessionDates: [], sessionIds: [] });
     const [graphData, setGraphData] = useState(null);
@@ -24,7 +26,7 @@ const ClientResponsesPage = () => {
                 }
 
                 const response = await fetch(
-                    `http://127.0.0.1:5000/past-responses?user_id=${userId}`,
+                    `${API_URL}/past-responses?user_id=${userId}`,
                     {
                         headers: { Authorization: `Bearer ${token}` },
                     }

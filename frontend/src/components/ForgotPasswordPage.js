@@ -3,6 +3,8 @@ import axios from "axios";
 import "../styles/global.css"; // Consolidated global styles
 import "../styles/forms.css"; // Form-specific styles
 
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000"
+
 const ForgotPassword = () => {
     const [email, setEmail] = useState("");
     const [message, setMessage] = useState("");
@@ -10,7 +12,7 @@ const ForgotPassword = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            await axios.post("http://127.0.0.1:5000/forgot-password", { email });
+            await axios.post(`${API_URL}/forgot-password`, { email });
             setMessage("If this email exists in our system, you'll receive a reset link shortly.");
         } catch (error) {
             setMessage("An error occurred. Please try again.");
