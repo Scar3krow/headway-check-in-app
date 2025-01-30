@@ -1,6 +1,6 @@
 import React from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
-import Register from './components/Register';
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom'; 
+import Register from './components/Register'; 
 import Login from './components/Login';
 import Home from './components/Home';
 import Logout from './components/Logout';
@@ -61,11 +61,12 @@ function App() {
                     <Route path="/client-dashboard" element={<ProtectedRoute element={<ClientDashboard />} roleRequired="client" />} />
                     <Route path="/client-responses" element={<ProtectedRoute element={<ClientResponsesPage />} roleRequired="client" />} />
                     <Route path="/client-results/:userId" element={<ProtectedRoute element={<ClientResultsPage />} roleRequired="client" />} />
-                    <Route path="/client-session-details" element={<ProtectedRoute element={<ClientSessionDetailsPage />} roleRequired="client" />} />
+                    <Route path="/session-details/:sessionId" element={<ProtectedRoute element={<SessionDetailsPage />} roleRequired="client" />} />
 
                     {/* Clinicians Only */}
                     <Route path="/clinician-dashboard" element={<ProtectedRoute element={<ClinicianDashboard />} roleRequired="clinician" />} />
                     <Route path="/clinician-data" element={<ProtectedRoute element={<ClinicianDataPage />} roleRequired="clinician" />} />
+                    <Route path="/client-session-details" element={<ProtectedRoute element={<ClientSessionDetailsPage />} roleRequired="clinician" />} />
 
                     {/* Admins Only */}
                     <Route path="/admin-dashboard" element={<ProtectedRoute element={<AdminDashboard />} roleRequired="admin" />} />
@@ -76,7 +77,6 @@ function App() {
                     <Route path="/forms" element={<ProtectedRoute element={<Form />} roleRequired="client" />} />
                     <Route path="/client/:userId" element={<ProtectedRoute element={<ClientDataPage />} roleRequired="clinician" />} />
                     <Route path="/search-results" element={<ProtectedRoute element={<SearchResultsPage />} roleRequired="clinician" />} />
-                    <Route path="/session-details/:sessionId" element={<ProtectedRoute element={<SessionDetailsPage />} roleRequired="clinician" />} />
                 </Routes>
             </div>
         </Router>
