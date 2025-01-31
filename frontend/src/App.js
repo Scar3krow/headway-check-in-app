@@ -32,6 +32,15 @@ const ProtectedRoute = ({ element, roleRequired }) => {
         return <Navigate to="/login" replace />;
     }
 
+    // ✅ Allow admins to access clinician routes as well
+    const effectiveRoles = role === "admin" && roleRequired === "clinician"
+        ? ["clinician", "admin"] // Admins are treated like clinicians
+        : [].concat(roleRequired); // Convert roleRequired into an array if needed
+
+    if (roleRequired && !effectiveRoles.includes(role)) {
+        return <Navigate to="/unauthorized" replace />;
+    }
+
     // Allow multiple roles if `roleRequired` is an array
     if (roleRequired && ![].concat(roleRequired).includes(role)) {
         return <Navigate to="/unauthorized" replace />;

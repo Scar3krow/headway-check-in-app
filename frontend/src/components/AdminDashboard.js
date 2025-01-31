@@ -11,6 +11,7 @@ const AdminDashboard = () => {
     const [clinicianCode, setClinicianCode] = useState("");
     const [adminCode, setAdminCode] = useState("");
     const [error, setError] = useState("");
+    const [isClinicianView, setIsClinicianView] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -26,7 +27,7 @@ const AdminDashboard = () => {
         try {
             const token = localStorage.getItem("token");
             const response = await axios.post(
-                `${API_URL}/generate-invite`,  // ✅ Use dynamic API URL
+                `${API_URL}/generate-invite`,  
                 { role },
                 {
                     headers: { Authorization: `Bearer ${token}` },
@@ -44,84 +45,98 @@ const AdminDashboard = () => {
         }
     };
 
-    const handleBack = () => {
-        setClinicianCode("");
-        setAdminCode("");
-        setError("");
+    const handleToggleView = () => {
+        setIsClinicianView(!isClinicianView);
     };
 
     const handleLogout = () => {
         localStorage.removeItem("token");
+        localStorage.removeItem("role");
         navigate("/login");
     };
 
-    const navigateToRemoveClinician = () => navigate("/remove-clinician");
-    const navigateToRemoveAdmin = () => navigate("/remove-admin");
-    const navigateToClinicianData = () => navigate("/clinician-data");
-
     return (
         <div className="admin-dashboard-container">
-            <h2 className="admin-dashboard-title">Admin Dashboard</h2>
+            <h2 className="admin-dashboard-title">
+                {isClinicianView ? "Clinician View" : "Admin Dashboard"}
+            </h2>
+
             {error && <p className="error-message">{error}</p>}
+
             <div className="admin-dashboard-content">
-                <div className="admin-actions">
-                    <button
-                        onClick={() => generateCode("clinician")}
-                        className="dashboard-button primary"
-                    >
-                        Generate Clinician Invite Code
-                    </button>
-                    {clinicianCode && (
-                        <p className="invite-code">
-                            Clinician Invite Code: <strong>{clinicianCode}</strong>
-                        </p>
-                    )}
-                    <button
-                        onClick={() => generateCode("admin")}
-                        className="dashboard-button info"
-                    >
-                        Generate Admin Invite Code
-                    </button>
-                    {adminCode && (
-                        <p className="invite-code">
-                            Admin Invite Code: <strong>{adminCode}</strong>
-                        </p>
-                    )}
-                    <button
-                        onClick={navigateToRemoveClinician}
-                        className="dashboard-button danger"
-                    >
-                        Remove Clinician
-                    </button>
-                    <button
-                        onClick={navigateToRemoveAdmin}
-                        className="dashboard-button danger"
-                    >
-                        Remove Admin
-                    </button>
-                    <button
-                        onClick={navigateToClinicianData}
-                        className="dashboard-button info"
-                    >
-                        Clinician Data
-                    </button>
-                </div>
-                <div className="button-group">
-                    {(clinicianCode || adminCode) && (
+                {/* 🚀 Toggle Button to Switch Views */}
+                <button
+                    onClick={handleToggleView}
+                    className="dashboard-button info"
+                >
+                    {isClinicianView ? "Switch to Admin View" : "Switch to Clinician View"}
+                </button>
+
+                {/* 🚀 Clinician View Content */}
+                {isClinicianView ? (
+                    <>
                         <button
-                            onClick={handleBack}
-                            className="dashboard-button tertiary"
+                            onClick={() => navigate("/clinician-dashboard")}
+                            className="dashboard-button primary"
                         >
-                            Back
+                            Go to Clinician Dashboard
                         </button>
-                    )}
-                    <button
-                        onClick={handleLogout}
-                        className="dashboard-button secondary logout-button"
-                    >
-                        Logout
-                    </button>
-                </div>
+                        <button
+                            onClick={() => navigate("/clinician-data")}
+                            className="dashboard-button info"
+                        >
+                            View Clinician Data
+                        </button>
+                        <button
+                            onClick={() => navigate("/search-clients")}
+                            className="dashboard-button secondary"
+                        >
+                            Search Clients
+                        </button>
+                    </>
+                ) : (
+                    <>
+                        {/* 🚀 Admin View Content */}
+                        <button
+                            onClick={() => generateCode("clinician")}
+                            className="dashboard-button primary"
+                        >
+                            Generate Clinician Invite Code
+                        </button>
+                        {clinicianCode && (
+                            <p className="invite-code">
+                                Clinician Invite Code: <strong>{clinicianCode}</strong>
+                            </p>
+                        )}
+                        <button
+                            onClick={() => generateCode("admin")}
+                            className="dashboard-button info"
+                        >
+                            Generate Admin Invite Code
+                        </button>
+                        {adminCode && (
+                            <p className="invite-code">
+                                Admin Invite Code: <strong>{adminCode}</strong>
+                            </p>
+                        )}
+                        <button
+                            onClick={() => navigate("/remove-clinician")}
+                            className="dashboard-button danger"
+                        >
+                            Remove Clinician
+                        </button>
+                        <button
+                            onClick={() => navigate("/remove-admin")}
+                            className="dashboard-button danger"
+                        >
+                            Remove Admin
+                        </button>
+                    </>
+                )}
+
+                <button onClick={handleLogout} className="dashboard-button secondary logout-button">
+                    Logout
+                </button>
             </div>
         </div>
     );
