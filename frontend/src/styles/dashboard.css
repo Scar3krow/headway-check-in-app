@@ -23,7 +23,7 @@
 
 .search-result-item {
     padding: 10px 15px;
-    background-color: #f9f9f9;
+    background-color: #F1EEE9;
     border: 1px solid #ddd;
     border-radius: 5px;
     cursor: pointer;
@@ -32,13 +32,13 @@
 }
 
 .search-result-item:hover {
-    background-color: #e7f3ff;
+    background-color: #D1DDCB;
     transform: scale(1.02);
 }
 
 /* Error Message Styling */
 .error-message {
-    color: #f44336;
+    color: #8D5F54;
     font-weight: bold;
     text-align: center;
     margin: 20px 0;
@@ -46,7 +46,7 @@
 
 /* Error Message */
 .error-message {
-    color: #f44336;
+    color: #8D5F54;
     font-weight: bold;
     text-align: center;
     margin-bottom: 20px;
@@ -54,7 +54,7 @@
 
 /* No Data Message */
 .no-data-message {
-    color: #6c757d;
+    color: #D1DDCB;
     font-size: 16px;
     text-align: center;
     margin-bottom: 20px;
@@ -64,7 +64,7 @@
 .data-point-instructions {
     font-style: italic;
     font-size: 14px;
-    color: #555;
+    color: #D1DDCB;
     text-align: center;
     margin-top: 10px;
 }

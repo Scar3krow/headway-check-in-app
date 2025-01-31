@@ -2,7 +2,7 @@
     max-width: 400px;
     margin: 0 auto;
     padding: 20px;
-    background-color: #f9f9f9;
+    background-color: #F1EEE9;
     border: 1px solid #ddd;
     border-radius: 8px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -25,8 +25,8 @@ select {
 
 input:focus,
 select:focus {
-    border-color: #4caf50;
-    box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+    border-color: #9FA691;
+    box-shadow: 0 0 5px rgba(212, 205, 199, 0.5);
 }
 
 /* Form Input */
@@ -34,15 +34,15 @@ select:focus {
     width: 100%;
     padding: 8px;
     font-size: 14px;
-    border: 1px solid #ccc;
+    border: 1px solid #D4CDC7;
     border-radius: 4px;
     outline: none;
     transition: border-color 0.3s;
 }
 
 .form-input:focus {
-    border-color: #4caf50;
-    box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+    border-color: #9FA691;
+    box-shadow: 0 0 5px rgba(212, 205, 199, 0.5);
 }
 
 /* Form Button */
@@ -59,7 +59,7 @@ select:focus {
 }
 
 .form-button:hover {
-    background-color: #7e8cbe;
+    background-color: #D1DDCB;
     transform: scale(1.05);
     filter: brightness(1.1);
 }
@@ -68,7 +68,7 @@ select:focus {
 .form-title {
     font-size: 24px;
     font-weight: bold;
-    color: #353d5f;
+    color: #587266;
     margin-bottom: 20px;
     text-align: center;
 }
@@ -85,8 +85,8 @@ select:focus {
 }
 
 .form-select:focus {
-    border-color: #4caf50;
-    box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+    border-color: #9FA691;
+    box-shadow: 0 0 5px rgba(212, 205, 199, 0.5);
 }
 
 /* Form Actions (Buttons) */
@@ -98,14 +98,14 @@ select:focus {
 
 /* Success and Error Messages */
 .error-message {
-    color: #f44336;
+    color: #8D5F54;
     font-weight: bold;
     text-align: center;
     margin-top: 15px;
 }
 
 .success-message {
-    color: #4caf50;
+    color: #587266;
     font-weight: bold;
     text-align: center;
     margin-top: 15px;
@@ -138,7 +138,7 @@ select:focus {
 /* Loading Message */
 .loading-message {
     font-size: 16px;
-    color: #6c757d;
+    color: #D1DDCB;
     text-align: center;
     margin-bottom: 20px;
 }
@@ -159,12 +159,12 @@ select:focus {
 }
 
 .message.success-message {
-    color: #4caf50;
+    color: #587266;
     font-weight: bold;
 }
 
 .message.error-message {
-    color: #f44336;
+    color: #8D5F54;
     font-weight: bold;
 }
 

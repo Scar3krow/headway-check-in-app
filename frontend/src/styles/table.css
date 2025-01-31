@@ -16,7 +16,7 @@
     gap: 20px; /* Gap between question and answer choices */
     align-items: center;
     padding: 20px;
-    background-color: #f9f9f9;
+    background-color: #F1EEE9;
     border: 1px solid #ddd;
     border-radius: 10px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -56,12 +56,12 @@
 
 /* Selected State */
 .likert-option input[type="radio"]:checked + .likert-label {
-    color: #4caf50; /* Green color when selected */
+    color: #587266; /* Green color when selected */
 }
 
 /* Hover State */
 .likert-option:hover .likert-label {
-    color: #4caf50;
+    color: #587266;
 }
 
 /* Hide Radio Button */

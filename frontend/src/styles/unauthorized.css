@@ -7,14 +7,14 @@
     height: 100vh;
     padding: 20px;
     text-align: center;
-    background-color: #f9f9f9;
+    background-color: #F1EEE9;
 }
 
 /* Title Styling */
 .unauthorized-title {
     font-size: 28px;
     font-weight: bold;
-    color: #f44336;
+    color: #8D5F54;
     margin-bottom: 20px;
 }
 

@@ -3,7 +3,7 @@
     max-width: 600px;
     margin: 0 auto;
     padding: 20px;
-    background-color: #f9f9f9;
+    background-color: #F1EEE9;
     border-radius: 10px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
@@ -20,27 +20,27 @@
 .stats-table td {
     text-align: left;
     padding: 12px 15px;
-    border: 1px solid #ddd;
+    border: 1px solid #D4CDC7;
 }
 
 .stats-table th {
-    background-color: #353d5f;
+    background-color: #587266;
     color: white;
     font-weight: bold;
     text-transform: uppercase;
 }
 
 .stats-table tr:nth-child(even) {
-    background-color: #f2f2f2;
+    background-color: #D1DDCB;
 }
 
 .stats-table tr:hover {
-    background-color: #e7f3ff;
+    background-color: #9FA691;
 }
 
 /* Error Message */
 .error-message {
-    color: #f44336;
+    color: #8D5F54;
     font-weight: bold;
     text-align: center;
     margin-bottom: 20px;
