@@ -28,18 +28,25 @@ def cors_enabled_response(data, status=200):
 
 # ✅ Token Validation Function
 def validate_token():
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        return None, {"message": "Missing or invalid token"}, 401
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return None, cors_enabled_response({'message': 'Missing or invalid token'}, 401)
 
-    token = auth_header.split(" ")[1]
+    token = auth_header.split(' ')[1]
     try:
         decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        
+        # ✅ Ensure admins have clinician privileges
+        if decoded_token.get('role') == "admin":
+            decoded_token['effective_role'] = "clinician"  # Admins inherit clinician role
+        else:
+            decoded_token['effective_role'] = decoded_token.get('role')  # Keep their existing role
+        
         return decoded_token, None, None
     except jwt.ExpiredSignatureError:
-        return None, {"message": "Token expired"}, 401
+        return None, cors_enabled_response({'message': 'Token expired'}, 401)
     except jwt.InvalidTokenError:
-        return None, {"message": "Invalid token"}, 401
+        return None, cors_enabled_response({'message': 'Invalid token'}, 401)
 
 
 @main_bp.route("/", defaults={"path": ""})
@@ -113,10 +120,21 @@ def register():
 
     user_id = user_ref[1].id
 
-    if role == 'clinician':
-        db.collection('clinicians').document(user_id).set({'id': user_id, 'name': f"{first_name} {last_name}"})
-    elif role == 'admin':
-        db.collection('admins').document(user_id).set({'id': user_id, 'name': f"{first_name} {last_name}"})
+    # ✅ Ensure clinicians & admins are added to the clinicians collection
+    if role in ['clinician', 'admin']:
+        db.collection('clinicians').document(user_id).set({
+            'id': user_id,
+            'name': f"{first_name} {last_name}",
+            'is_admin': True if role == 'admin' else False,  # Admins now have clinician access
+            'assigned_clinician_id': assigned_clinician_id if role == 'admin' else None,
+        })
+
+    # ✅ Ensure admins are also in the admins collection
+    if role == 'admin':
+        db.collection('admins').document(user_id).set({
+            'id': user_id,
+            'name': f"{first_name} {last_name}"
+        })
 
     return cors_enabled_response({'message': 'User registered successfully', 'role': role}, 201)
 
@@ -134,19 +152,28 @@ def login():
     if user_doc:
         user_data = user_doc.to_dict()
         if bcrypt.check_password_hash(user_data['password'], password):
+            # ✅ Determine the effective role (admin inherits clinician)
+            effective_role = user_data['role']
+            if effective_role == "admin":
+                effective_role = "clinician"  # Admins get full clinician access
+
             token_payload = {
                 'id': user_doc.id,
                 'role': user_data['role'],
+                'effective_role': effective_role,  # ✅ New field
                 'exp': datetime.utcnow() + timedelta(hours=48),
             }
             access_token = jwt.encode(token_payload, SECRET_KEY, algorithm="HS256")
+
             return cors_enabled_response({
                 'access_token': access_token,
                 'role': user_data['role'],
+                'effective_role': effective_role,  # ✅ Admins will now see "clinician"
                 'user_id': user_doc.id,
             }, 200)
 
     return cors_enabled_response({'message': 'Invalid credentials'}, 401)
+
 
 @main_bp.route('/questions', methods=['GET'])
 def get_questions():
@@ -196,10 +223,32 @@ def past_responses():
     if error_response:
         return cors_enabled_response(error_response, status_code)
 
-    user_role = decoded_token.get('role')
+    user_role = decoded_token.get('effective_role')  # ✅ Use effective role (admin has clinician privileges)
     user_id = decoded_token.get('id')
-    query_user_id = request.args.get('user_id') if user_role == 'clinician' else user_id
 
+    # ✅ Admins can query any user
+    if user_role == 'admin':
+        query_user_id = request.args.get('user_id')  # Admin must provide user_id
+        if not query_user_id:
+            return cors_enabled_response({'message': 'Admin must specify a user_id'}, 400)
+
+    # ✅ Clinicians can only query their assigned clients
+    elif user_role == 'clinician':
+        query_user_id = request.args.get('user_id')
+        if not query_user_id:
+            return cors_enabled_response({'message': 'Clinician must specify a user_id'}, 400)
+
+        assigned_clients = db.collection('users').where('assigned_clinician_id', '==', user_id).stream()
+        assigned_client_ids = {client.id for client in assigned_clients}
+
+        if query_user_id not in assigned_client_ids:
+            return cors_enabled_response({'message': 'Unauthorized: Clinician can only view assigned clients'}, 403)
+
+    # ✅ Clients can only access their own data
+    else:
+        query_user_id = user_id
+
+    # Fetch responses for the given user_id
     responses_ref = db.collection('responses').where('user_id', '==', query_user_id).stream()
     responses = [
         {
@@ -267,44 +316,83 @@ def session_details():
 @main_bp.route('/search-users', methods=['GET'])
 def search_users():
     """Search users by first name or last name."""
+    decoded_token, error_response, status_code = validate_token()
+    if error_response:
+        return cors_enabled_response(error_response, status_code)
+
+    user_role = decoded_token.get('effective_role')  # ✅ Use effective role
+    user_id = decoded_token.get('id')
     query = request.args.get('query', '').lower()
+
     if not query:
         return cors_enabled_response({'message': 'Query parameter is required'}, 400)
 
-    users_ref = db.collection('users').stream()
-    matching_users = [
-        {
-            'id': user.id,
-            'first_name': user.to_dict().get('first_name', ''),
-            'last_name': user.to_dict().get('last_name', '')
-        }
-        for user in users_ref
-        if query in user.to_dict().get('first_name', '').lower() or query in user.to_dict().get('last_name', '').lower()
-    ]
+    # ✅ Admins can search all users
+    if user_role == 'admin':
+        users_ref = db.collection('users').stream()
+        matching_users = [
+            {
+                'id': user.id,
+                'first_name': user.to_dict().get('first_name', ''),
+                'last_name': user.to_dict().get('last_name', ''),
+                'role': user.to_dict().get('role', '')
+            }
+            for user in users_ref
+            if query in user.to_dict().get('first_name', '').lower() or query in user.to_dict().get('last_name', '').lower()
+        ]
+
+    # ✅ Clinicians can only search assigned clients
+    elif user_role == 'clinician':
+        assigned_clients = db.collection('users').where('assigned_clinician_id', '==', user_id).stream()
+        matching_users = [
+            {
+                'id': user.id,
+                'first_name': user.to_dict().get('first_name', ''),
+                'last_name': user.to_dict().get('last_name', ''),
+                'role': user.to_dict().get('role', '')
+            }
+            for user in assigned_clients
+            if query in user.to_dict().get('first_name', '').lower() or query in user.to_dict().get('last_name', '').lower()
+        ]
+
+    # ❌ Clients cannot search for other users
+    else:
+        return cors_enabled_response({'message': 'Unauthorized: Clients cannot search for other users'}, 403)
 
     return cors_enabled_response(matching_users, 200)
 
 
 @main_bp.route('/search-clients', methods=['GET'])
 def search_clients():
-    """Allow clinicians to search for their own clients."""
-    query = request.args.get('query', '').lower()
+    """Allow clinicians and admins to search for clients."""
     decoded_token, error_response, status_code = validate_token()
     if error_response:
         return cors_enabled_response(error_response, status_code)
 
-    clinician_id = decoded_token.get('id')
+    user_role = decoded_token.get('effective_role')  # ✅ Use effective role
+    user_id = decoded_token.get('id')
+    query = request.args.get('query', '').lower()
 
-    clients_ref = db.collection('users') \
-        .where('assigned_clinician_id', '==', clinician_id) \
-        .where('role', '==', 'client') \
-        .stream()
+    if not query:
+        return cors_enabled_response({'message': 'Query parameter is required'}, 400)
+
+    # ✅ Admins can search all clients
+    if user_role == 'admin':
+        clients_ref = db.collection('users').where('role', '==', 'client').stream()
+
+    # ✅ Clinicians can only search their assigned clients
+    elif user_role == 'clinician':
+        clients_ref = db.collection('users').where('assigned_clinician_id', '==', user_id).stream()
+
+    # ❌ Clients cannot search at all
+    else:
+        return cors_enabled_response({'message': 'Unauthorized: Clients cannot search for other users'}, 403)
 
     matching_clients = [
         {
             'id': client.id,
             'first_name': client.to_dict().get('first_name', ''),
-            'last_name': client.to_dict().get('last_name', '')
+            'last_name': client.to_dict().get('last_name', ''),
         }
         for client in clients_ref
         if query in client.to_dict().get('first_name', '').lower() or query in client.to_dict().get('last_name', '').lower()
@@ -441,15 +529,22 @@ def remove_admin():
         return cors_enabled_response({'message': 'Admin ID is required'}, 400)
 
     try:
+        # ✅ Remove from 'users' collection
         users_ref = db.collection('users').document(admin_id)
         if not users_ref.get().exists:
             return cors_enabled_response({'message': 'Admin not found in users collection'}, 404)
         users_ref.delete()
 
+        # ✅ Remove from 'admins' collection
         admins_ref = db.collection('admins').document(admin_id)
         if not admins_ref.get().exists:
             return cors_enabled_response({'message': 'Admin not found in admins collection'}, 404)
         admins_ref.delete()
+
+        # ✅ If admin was also a clinician, remove from 'clinicians'
+        clinicians_ref = db.collection('clinicians').document(admin_id)
+        if clinicians_ref.get().exists:
+            clinicians_ref.delete()
 
         return cors_enabled_response({'message': 'Admin removed successfully'}, 200)
     except Exception as e:

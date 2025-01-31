@@ -42,7 +42,10 @@ def create_app():
     app.config['CORS_HEADERS'] = 'Content-Type'
 
     FRONTEND_URL = "https://headway-check-in-app-1.onrender.com"
-    CORS(app, resources={r"/*": {"origins": [FRONTEND_URL, "http://localhost:3000"]}})
+    CORS(app, resources={r"/*": {"origins": [FRONTEND_URL, "http://localhost:3000"]}}, 
+        supports_credentials=True,
+        allow_headers=["Authorization", "Content-Type"],
+        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
     bcrypt.init_app(app)
 
     # Register routes
