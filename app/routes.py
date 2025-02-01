@@ -36,11 +36,7 @@ def validate_token():
     try:
         decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         
-        # ✅ Ensure admins have clinician privileges
-        if decoded_token.get('role') == "admin":
-            decoded_token['effective_role'] = "clinician"  # Admins inherit clinician role
-        else:
-            decoded_token['effective_role'] = decoded_token.get('role')  # Keep their existing role
+        decoded_token['role'] = decoded_token.get('role')
         
         return decoded_token, None, None
     except jwt.ExpiredSignatureError:
@@ -152,15 +148,10 @@ def login():
     if user_doc:
         user_data = user_doc.to_dict()
         if bcrypt.check_password_hash(user_data['password'], password):
-            # ✅ Determine the effective role (admin inherits clinician)
-            effective_role = user_data['role']
-            if effective_role == "admin":
-                effective_role = "clinician"  # Admins get full clinician access
 
             token_payload = {
                 'id': user_doc.id,
                 'role': user_data['role'],
-                'effective_role': effective_role,  # ✅ New field
                 'exp': datetime.utcnow() + timedelta(hours=48),
             }
             access_token = jwt.encode(token_payload, SECRET_KEY, algorithm="HS256")
@@ -168,7 +159,6 @@ def login():
             return cors_enabled_response({
                 'access_token': access_token,
                 'role': user_data['role'],
-                'effective_role': effective_role,  # ✅ Admins will now see "clinician"
                 'user_id': user_doc.id,
             }, 200)
 
@@ -223,7 +213,7 @@ def past_responses():
     if error_response:
         return cors_enabled_response(error_response, status_code)
 
-    user_role = decoded_token.get('effective_role')  # ✅ Use effective role (admin has clinician privileges)
+    user_role = decoded_token.get('role')  
     user_id = decoded_token.get('id')
 
     # ✅ Admins can query any user
@@ -320,7 +310,7 @@ def search_users():
     if error_response:
         return cors_enabled_response(error_response, status_code)
 
-    user_role = decoded_token.get('effective_role')  # ✅ Use effective role
+    user_role = decoded_token.get('role') 
     user_id = decoded_token.get('id')
     query = request.args.get('query', '').lower()
 
@@ -369,7 +359,7 @@ def search_clients():
     if error_response:
         return cors_enabled_response(error_response, status_code)
 
-    user_role = decoded_token.get('effective_role')  # ✅ Use effective role
+    user_role = decoded_token.get('role')
     user_id = decoded_token.get('id')
     query = request.args.get('query', '').lower()
 

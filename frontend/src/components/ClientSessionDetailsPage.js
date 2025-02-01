@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import "../styles/global.css"; // Consolidated global styles
-import "../styles/forms.css"; // For form-related layouts and messages
+import "../styles/forms.css"; // Form layouts & messages
 import "../styles/table.css"; // Shared table styles
-import "../styles/sessiondetails.css"; // Specific to session details
+import "../styles/sessiondetails.css"; // Specific styles for session details
 
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000"
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
 const ClientSessionDetailsPage = () => {
     const { sessionId } = useParams();
@@ -31,26 +31,51 @@ const ClientSessionDetailsPage = () => {
         const fetchData = async () => {
             try {
                 const token = localStorage.getItem("token");
+                const role = localStorage.getItem("role");
+                const userId = localStorage.getItem("user_id");
 
+                if (!token || !["client", "clinician", "admin"].includes(role)) {
+                    navigate("/unauthorized"); // 🔒 Redirect unauthorized users
+                    return;
+                }
+
+                // 🛠️ **API Calls: Fetch Session Details & Questions**
                 const [sessionResponse, questionsResponse] = await Promise.all([
                     fetch(`${API_URL}/session-details?session_id=${sessionId}`, {
-                        headers: { Authorization: `Bearer ${token}` },
+                        headers: { 
+                            "Content-Type": "application/json", 
+                            Authorization: `Bearer ${token}`
+                        },
                     }),
                     fetch(`${API_URL}/questions`, {
-                        headers: { Authorization: `Bearer ${token}` },
+                        headers: { 
+                            "Content-Type": "application/json", 
+                            Authorization: `Bearer ${token}`
+                        },
                     }),
                 ]);
 
-                if (!sessionResponse.ok) {
-                    throw new Error("Failed to fetch session details.");
+                // 🔥 Handle Unauthorized Responses
+                if (sessionResponse.status === 401 || questionsResponse.status === 401) {
+                    throw new Error("Unauthorized access. You may not have permission.");
                 }
-                if (!questionsResponse.ok) {
-                    throw new Error("Failed to fetch questions.");
+
+                if (!sessionResponse.ok || !questionsResponse.ok) {
+                    throw new Error("Failed to fetch data.");
                 }
 
                 const sessionData = await sessionResponse.json();
                 const questionsData = await questionsResponse.json();
 
+                // ✅ Ensure clients can ONLY see their own session data
+                if (role === "client") {
+                    const isClientSession = sessionData.every(detail => detail.user_id === userId);
+                    if (!isClientSession) {
+                        throw new Error("Unauthorized: You cannot view another user's session.");
+                    }
+                }
+
+                // 📝 Create a Question Map for Lookup
                 const questionMap = questionsData.reduce((acc, question) => {
                     acc[question.id] = question.text;
                     return acc;
@@ -67,7 +92,7 @@ const ClientSessionDetailsPage = () => {
         };
 
         fetchData();
-    }, [sessionId]);
+    }, [sessionId, navigate]);
 
     const handleBackToClientResponses = () => {
         navigate("/client-responses");
@@ -83,7 +108,7 @@ const ClientSessionDetailsPage = () => {
                         <thead>
                             <tr>
                                 <th>Question</th>
-                                <th>Your Response</th>
+                                <th>Response</th>
                             </tr>
                         </thead>
                         <tbody>

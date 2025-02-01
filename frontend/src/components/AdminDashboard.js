@@ -15,10 +15,9 @@ const AdminDashboard = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        // Check if the user is an admin
         const role = localStorage.getItem("role");
         if (role !== "admin") {
-            navigate("/unauthorized"); // Redirect non-admin users to an "Unauthorized" page
+            navigate("/unauthorized"); // Redirect non-admin users
         }
     }, [navigate]);
 
@@ -27,7 +26,7 @@ const AdminDashboard = () => {
         try {
             const token = localStorage.getItem("token");
             const response = await axios.post(
-                `${API_URL}/generate-invite`,  
+                `${API_URL}/generate-invite`,
                 { role },
                 {
                     headers: { Authorization: `Bearer ${token}` },
@@ -47,6 +46,13 @@ const AdminDashboard = () => {
 
     const handleToggleView = () => {
         setIsClinicianView(!isClinicianView);
+
+        // 🔥 **Redirect Immediately After Toggle**
+        if (!isClinicianView) {
+            navigate("/clinician-dashboard"); // ✅ Switch to Clinician View
+        } else {
+            navigate("/admin-dashboard"); // ✅ Switch Back to Admin View
+        }
     };
 
     const handleLogout = () => {
@@ -64,15 +70,12 @@ const AdminDashboard = () => {
             {error && <p className="error-message">{error}</p>}
 
             <div className="admin-dashboard-content">
-                {/* 🚀 Toggle Button to Switch Views */}
-                <button
-                    onClick={handleToggleView}
-                    className="dashboard-button info"
-                >
+                {/* 🔄 Toggle Between Admin & Clinician View */}
+                <button onClick={handleToggleView} className="dashboard-button info">
                     {isClinicianView ? "Switch to Admin View" : "Switch to Clinician View"}
                 </button>
 
-                {/* 🚀 Clinician View Content */}
+                {/* 🔥 Clinician View */}
                 {isClinicianView ? (
                     <>
                         <button
@@ -81,22 +84,10 @@ const AdminDashboard = () => {
                         >
                             Go to Clinician Dashboard
                         </button>
-                        <button
-                            onClick={() => navigate("/clinician-data")}
-                            className="dashboard-button info"
-                        >
-                            View Clinician Data
-                        </button>
-                        <button
-                            onClick={() => navigate("/search-clients")}
-                            className="dashboard-button secondary"
-                        >
-                            Search Clients
-                        </button>
                     </>
                 ) : (
                     <>
-                        {/* 🚀 Admin View Content */}
+                        {/* 🔥 Admin View */}
                         <button
                             onClick={() => generateCode("clinician")}
                             className="dashboard-button primary"
@@ -119,6 +110,12 @@ const AdminDashboard = () => {
                                 Admin Invite Code: <strong>{adminCode}</strong>
                             </p>
                         )}
+                        <button
+                            onClick={() => navigate("/clinician-data")}
+                            className="dashboard-button info"
+                        >
+                            View Clinician Data
+                        </button>
                         <button
                             onClick={() => navigate("/remove-clinician")}
                             className="dashboard-button danger"

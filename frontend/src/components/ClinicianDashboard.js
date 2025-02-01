@@ -1,16 +1,23 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/global.css"; // Consolidated global styles
 import "../styles/dashboard.css"; // Dashboard-specific styles
 import "../styles/buttons.css"; // Button-specific styles
 import "../styles/searchdropdown.css"; // Specific for search dropdown
 
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000"
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
 const ClinicianDashboard = () => {
     const [searchQuery, setSearchQuery] = useState("");
     const [clientOptions, setClientOptions] = useState([]);
+    const [isAdmin, setIsAdmin] = useState(false);
     const navigate = useNavigate();
+
+    useEffect(() => {
+        // 🔥 **Detect if Logged in User is an Admin**
+        const role = localStorage.getItem("role");
+        setIsAdmin(role === "admin");
+    }, []);
 
     const handleSearchChange = async (e) => {
         const query = e.target.value.trim().toLowerCase();
@@ -23,12 +30,15 @@ const ClinicianDashboard = () => {
 
         try {
             const token = localStorage.getItem("token");
-            const response = await fetch(
-                `${API_URL}/search-clients?query=${query}`,
-                {
-                    headers: { Authorization: `Bearer ${token}` },
-                }
-            );
+
+            // ✅ Admins Search All Clients, Clinicians Only Search Their Own
+            const searchUrl = isAdmin
+                ? `${API_URL}/search-all-clients?query=${query}`
+                : `${API_URL}/search-clients?query=${query}`;
+
+            const response = await fetch(searchUrl, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
 
             if (!response.ok) throw new Error("Failed to fetch client options");
 
@@ -59,9 +69,15 @@ const ClinicianDashboard = () => {
         navigate("/login");
     };
 
+    const handleSwitchToAdmin = () => {
+        navigate("/admin-dashboard"); // ✅ Toggle Back to Admin Dashboard
+    };
+
     return (
         <div className="client-dashboard-container">
-            <h2 className="client-dashboard-title">Clinician Dashboard</h2>
+            <h2 className="client-dashboard-title">
+                {isAdmin ? "Clinician View (Admin)" : "Clinician Dashboard"}
+            </h2>
             <div className="client-dashboard-content">
                 <div className="search-section">
                     <input
@@ -101,6 +117,15 @@ const ClinicianDashboard = () => {
                             >
                                 Logout
                             </button>
+                            {/* 🔥 Only Show "Switch to Admin View" for Admins */}
+                            {isAdmin && (
+                                <button
+                                    onClick={handleSwitchToAdmin}
+                                    className="dashboard-button info"
+                                >
+                                    Switch to Admin View
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
