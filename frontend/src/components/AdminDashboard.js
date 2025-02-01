@@ -16,7 +16,7 @@ const AdminDashboard = () => {
 
     useEffect(() => {
         // Check if the user is an admin
-        const role = localStorage.getItem("effective_role");
+        const role = localStorage.getItem("role");
         if (role !== "admin") {
             navigate("/unauthorized"); // Redirect non-admin users to an "Unauthorized" page
         }

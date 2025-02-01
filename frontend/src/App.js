@@ -78,9 +78,9 @@ function App() {
                     <Route path="/session-details/:sessionId" element={<ProtectedRoute element={<SessionDetailsPage />} roleRequired="client" />} />
 
                     {/* Clinicians Only */}
-                    <Route path="/clinician-dashboard" element={<ProtectedRoute element={<ClinicianDashboard />} roleRequired="clinician" />} />
-                    <Route path="/client-results/:userId" element={<ProtectedRoute element={<ClientResultsPage />} roleRequired="clinician" />} />
-                    <Route path="/client-session-details" element={<ProtectedRoute element={<ClientSessionDetailsPage />} roleRequired="clinician" />} />
+                    <Route path="/clinician-dashboard" element={<ProtectedRoute element={<ClinicianDashboard />} roleRequired={["clinician", "admin"]} />} />
+                    <Route path="/client-results/:userId" element={<ProtectedRoute element={<ClientResultsPage />} roleRequired={["clinician", "admin"]} />} />
+                    <Route path="/client-session-details" element={<ProtectedRoute element={<ClientSessionDetailsPage />} roleRequired={["clinician", "admin"]} />} />
 
                     {/* Admins Only */}
                     <Route path="/clinician-data" element={<ProtectedRoute element={<ClinicianDataPage />} roleRequired="admin" />} />
@@ -90,8 +90,8 @@ function App() {
 
                     {/* Mixed Roles (Accessible by Multiple Roles) */}
                     <Route path="/forms" element={<ProtectedRoute element={<Form />} roleRequired={["client", "clinician"]} />} />
-                    <Route path="/client/:userId" element={<ProtectedRoute element={<ClientDataPage />} roleRequired="clinician" />} />
-                    <Route path="/search-results" element={<ProtectedRoute element={<SearchResultsPage />} roleRequired="clinician" />} />
+                    <Route path="/client/:userId" element={<ProtectedRoute element={<ClientDataPage />} roleRequired={["clinician", "admin"]} />} />
+                    <Route path="/search-results" element={<ProtectedRoute element={<SearchResultsPage />} roleRequired={["clinician", "admin"]} />} />
                 </Routes>
             </div>
         </Router>
