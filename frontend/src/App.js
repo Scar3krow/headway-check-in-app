@@ -26,7 +26,7 @@ import './styles/global.css';
 // 🔐 **Protected Route Component**
 const ProtectedRoute = ({ element, roleRequired }) => {
     const token = localStorage.getItem('token');
-    const role = localStorage.getItem('role');
+    const role = localStorage.getItem('effective_role');
 
     if (!token) {
         return <Navigate to="/login" replace />;
@@ -43,6 +43,11 @@ const ProtectedRoute = ({ element, roleRequired }) => {
 
     // Allow multiple roles if `roleRequired` is an array
     if (roleRequired && ![].concat(roleRequired).includes(role)) {
+        return <Navigate to="/unauthorized" replace />;
+    }
+
+    const allowedRoles = Array.isArray(roleRequired) ? roleRequired : [roleRequired];
+    if (!allowedRoles.includes(role)) {
         return <Navigate to="/unauthorized" replace />;
     }
 

@@ -30,32 +30,39 @@ const Login = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
-
+    
         if (!email || !password) {
             setError("Please enter both email and password.");
             return;
         }
-
+    
         try {
-            const response = await axios.post(`${API_URL}/login`, {  // 👈 Uses API_URL
+            const response = await axios.post(`${API_URL}/login`, {  
                 email,
                 password,
             });
-
+    
             const { access_token, role, user_id } = response.data;
-
-            // Store token, role, and user_id in local storage
+    
+            // ✅ **Fix: Store `effective_role` correctly**
+            let effective_role = role;
+            if (role === "admin") {
+                effective_role = "clinician";  // Admins should also be clinicians
+            }
+    
+            // ✅ **Fix: Store both role & effective_role**
             localStorage.setItem("token", access_token);
-            localStorage.setItem("role", role);
+            localStorage.setItem("role", role);  // 🔥 This is still "admin"
+            localStorage.setItem("effective_role", effective_role);  // 🔥 This is now "clinician"
             localStorage.setItem("user_id", user_id);
-
-            // Redirect based on role
-            if (role === "client") {
+    
+            // ✅ **Fix: Redirect Admins Correctly**
+            if (role === "admin") {
+                navigate("/admin-dashboard");  // 🔥 Admins go to admin-dashboard
+            } else if (effective_role === "client") {
                 navigate("/client-dashboard");
-            } else if (role === "clinician") {
+            } else if (effective_role === "clinician") {
                 navigate("/clinician-dashboard");
-            } else if (role === "admin") {
-                navigate("/admin-dashboard");
             } else {
                 setError("Invalid role. Please contact support.");
             }

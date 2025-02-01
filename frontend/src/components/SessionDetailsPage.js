@@ -29,10 +29,16 @@ const SessionDetailsPage = () => {
 
                 const [sessionResponse, questionsResponse] = await Promise.all([
                     fetch(`${API_URL}/session-details?session_id=${sessionId}`, {
-                        headers: { Authorization: `Bearer ${token}` },
+                        headers: { 
+                            "Content-Type": "application/json", 
+                            Authorization: `Bearer ${token}` 
+                        },
                     }),
                     fetch(`${API_URL}/questions`, {
-                        headers: { Authorization: `Bearer ${token}` },
+                        headers: { 
+                            "Content-Type": "application/json", 
+                            Authorization: `Bearer ${token}` 
+                        },
                     }),
                 ]);
 
