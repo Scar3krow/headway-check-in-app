@@ -278,7 +278,7 @@ def submit_answer():
 
 @main_bp.route('/session-details', methods=['GET'])
 def session_details():
-    """Fetch session details by session_id."""
+    """Fetch session details by session_id with proper role validation."""
     decoded_token, error_response, status_code = validate_token()
     if error_response:
         return cors_enabled_response(error_response, status_code)
@@ -287,10 +287,30 @@ def session_details():
     if not session_id:
         return cors_enabled_response({'message': 'Session ID is required'}, 400)
 
+    user_role = decoded_token.get('role')
+    user_id = decoded_token.get('id')
+
+    # 🔥 Fetch session responses
     responses_ref = db.collection('responses').where('session_id', '==', session_id).stream()
     responses = []
+    
     for r in responses_ref:
         response_data = r.to_dict()
+        response_user_id = response_data.get('user_id')
+
+        # 🛑 **Ensure proper access control**
+        if user_role == "client" and response_user_id != user_id:
+            return cors_enabled_response({'message': 'Unauthorized access to session'}, 403)
+
+        if user_role == "clinician":
+            # 🔍 **Check if this user is assigned to the clinician**
+            client_doc = db.collection('users').document(response_user_id).get()
+            if client_doc.exists:
+                client_data = client_doc.to_dict()
+                if client_data.get('assigned_clinician_id') != user_id:
+                    return cors_enabled_response({'message': 'Unauthorized access to session'}, 403)
+
+        # ✅ Admins can access any session
         responses.append({
             'question_id': response_data.get('question_id'),
             'response_value': response_data.get('response_value'),
