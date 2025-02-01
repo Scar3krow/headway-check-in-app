@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import "../styles/global.css"; // Consolidated global styles
-import "../styles/forms.css"; // Form layouts & messages
-import "../styles/table.css"; // Shared table styles
-import "../styles/sessiondetails.css"; // Specific styles for session details
+import "../styles/global.css";
+import "../styles/forms.css";
+import "../styles/table.css";
+import "../styles/sessiondetails.css";
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
@@ -31,33 +31,36 @@ const ClientSessionDetailsPage = () => {
         const fetchData = async () => {
             try {
                 const token = localStorage.getItem("token");
+                const deviceToken = localStorage.getItem("device_token");
                 const role = localStorage.getItem("role");
                 const userId = localStorage.getItem("user_id");
 
-                if (!token || !["client", "clinician", "admin"].includes(role)) {
-                    navigate("/unauthorized"); // 🔒 Redirect unauthorized users
+                if (!token || !deviceToken || !["client", "clinician", "admin"].includes(role)) {
+                    navigate("/unauthorized");
                     return;
                 }
 
-                // 🛠️ **API Calls: Fetch Session Details & Questions**
+                // 🔥 **Fetch Session Details & Questions**
                 const [sessionResponse, questionsResponse] = await Promise.all([
                     fetch(`${API_URL}/session-details?session_id=${sessionId}`, {
-                        headers: { 
-                            "Content-Type": "application/json", 
-                            Authorization: `Bearer ${token}`
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${token}`,
+                            "Device-Token": deviceToken,
                         },
                     }),
                     fetch(`${API_URL}/questions`, {
-                        headers: { 
-                            "Content-Type": "application/json", 
-                            Authorization: `Bearer ${token}`
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${token}`,
+                            "Device-Token": deviceToken,
                         },
                     }),
                 ]);
 
-                // 🔥 Handle Unauthorized Responses
+                // 🔒 Handle Unauthorized Errors
                 if (sessionResponse.status === 401 || questionsResponse.status === 401) {
-                    throw new Error("Unauthorized access. You may not have permission.");
+                    throw new Error("Unauthorized access.");
                 }
 
                 if (!sessionResponse.ok || !questionsResponse.ok) {
@@ -67,7 +70,7 @@ const ClientSessionDetailsPage = () => {
                 const sessionData = await sessionResponse.json();
                 const questionsData = await questionsResponse.json();
 
-                // ✅ Ensure clients can ONLY see their own session data
+                // ✅ **Restrict Clients to Their Own Data**
                 if (role === "client") {
                     const isClientSession = sessionData.every(detail => detail.user_id === userId);
                     if (!isClientSession) {
@@ -75,7 +78,7 @@ const ClientSessionDetailsPage = () => {
                     }
                 }
 
-                // 📝 Create a Question Map for Lookup
+                // 📝 **Map Question IDs to Text**
                 const questionMap = questionsData.reduce((acc, question) => {
                     acc[question.id] = question.text;
                     return acc;
@@ -85,9 +88,7 @@ const ClientSessionDetailsPage = () => {
                 setQuestionMap(questionMap);
             } catch (error) {
                 console.error("Error fetching session details:", error);
-                setErrorMessage(
-                    "An error occurred while fetching session details. Please try again."
-                );
+                setErrorMessage("Error fetching session details. Please try again.");
             }
         };
 

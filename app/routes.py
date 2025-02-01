@@ -26,19 +26,30 @@ def cors_enabled_response(data, status=200):
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
     return response
 
-# ✅ Token Validation Function
 def validate_token():
+    """Validate JWT token and ensure session exists in Firestore."""
     auth_header = request.headers.get('Authorization')
     if not auth_header or not auth_header.startswith('Bearer '):
         return None, cors_enabled_response({'message': 'Missing or invalid token'}, 401)
 
     token = auth_header.split(' ')[1]
+    
     try:
         decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        
-        decoded_token['role'] = decoded_token.get('role')
-        
+        user_id = decoded_token.get('id')
+        device_token = decoded_token.get('device_token')  # 🔥 Extract device token
+
+        if not user_id or not device_token:
+            return None, cors_enabled_response({'message': 'Invalid token payload'}, 401)
+
+        # 🔥 Check if this device_token exists in Firestore under user's sessions
+        session_ref = db.collection('users').document(user_id).collection('sessions').document(device_token).get()
+
+        if not session_ref.exists:
+            return None, cors_enabled_response({'message': 'Session expired or revoked'}, 401)
+
         return decoded_token, None, None
+
     except jwt.ExpiredSignatureError:
         return None, cors_enabled_response({'message': 'Token expired'}, 401)
     except jwt.InvalidTokenError:
@@ -137,7 +148,7 @@ def register():
 
 @main_bp.route('/login', methods=['POST'])
 def login():
-    """Login and issue a JWT."""
+    """Login and issue a JWT tied to a specific device."""
     data = request.get_json()
     email = data.get('email', '').strip().lower()
     password = data.get('password')
@@ -148,18 +159,30 @@ def login():
     if user_doc:
         user_data = user_doc.to_dict()
         if bcrypt.check_password_hash(user_data['password'], password):
+            # 🔥 Generate a **unique** device token per login session
+            device_token = str(uuid.uuid4())
 
+            # 🔐 Create JWT payload with device token
             token_payload = {
                 'id': user_doc.id,
                 'role': user_data['role'],
                 'exp': datetime.utcnow() + timedelta(hours=48),
+                'device_token': device_token  # ✅ Include device token
             }
             access_token = jwt.encode(token_payload, SECRET_KEY, algorithm="HS256")
+
+            # ✅ Store this session in Firestore under `users/{user_id}/sessions`
+            user_sessions_ref = db.collection('users').document(user_doc.id).collection('sessions')
+            user_sessions_ref.document(device_token).set({
+                'device_token': device_token,
+                'created_at': datetime.utcnow(),
+            })
 
             return cors_enabled_response({
                 'access_token': access_token,
                 'role': user_data['role'],
                 'user_id': user_doc.id,
+                'device_token': device_token  # ✅ Send this to the frontend
             }, 200)
 
     return cors_enabled_response({'message': 'Invalid credentials'}, 401)
@@ -215,45 +238,53 @@ def past_responses():
 
     user_role = decoded_token.get('role')  
     user_id = decoded_token.get('id')
+    query_user_id = request.args.get('user_id')
 
-    # ✅ Admins can query any user
-    if user_role == 'admin':
-        query_user_id = request.args.get('user_id')  # Admin must provide user_id
-        if not query_user_id:
-            return cors_enabled_response({'message': 'Admin must specify a user_id'}, 400)
+    try:
+        # ✅ **Admins can query any user (Must specify user_id)**
+        if user_role == 'admin':
+            if not query_user_id:
+                return cors_enabled_response({'message': 'Admin must specify a user_id'}, 400)
 
-    # ✅ Clinicians can only query their assigned clients
-    elif user_role == 'clinician':
-        query_user_id = request.args.get('user_id')
-        if not query_user_id:
-            return cors_enabled_response({'message': 'Clinician must specify a user_id'}, 400)
+        # ✅ **Clinicians can only query their assigned clients**
+        elif user_role == 'clinician':
+            if not query_user_id:
+                return cors_enabled_response({'message': 'Clinician must specify a user_id'}, 400)
 
-        assigned_clients = db.collection('users').where('assigned_clinician_id', '==', user_id).stream()
-        assigned_client_ids = {client.id for client in assigned_clients}
+            # 🔍 **Check if user is assigned to the clinician**
+            client_doc = db.collection('users').document(query_user_id).get()
+            if not client_doc.exists or client_doc.to_dict().get('assigned_clinician_id') != user_id:
+                return cors_enabled_response({'message': 'Unauthorized: You can only view assigned clients'}, 403)
 
-        if query_user_id not in assigned_client_ids:
-            return cors_enabled_response({'message': 'Unauthorized: Clinician can only view assigned clients'}, 403)
+        # ✅ **Clients can only access their own data**
+        elif user_role == 'client':
+            if query_user_id and query_user_id != user_id:
+                return cors_enabled_response({'message': 'Unauthorized: Clients can only access their own data'}, 403)
+            query_user_id = user_id  # Force clients to only access their own data
 
-    # ✅ Clients can only access their own data
-    else:
-        query_user_id = user_id
+        else:
+            return cors_enabled_response({'message': 'Unauthorized: Invalid role'}, 403)
 
-    # Fetch responses for the given user_id
-    responses_ref = db.collection('responses').where('user_id', '==', query_user_id).stream()
-    responses = [
-        {
-            'question_id': r.to_dict().get('question_id'),
-            'response_value': r.to_dict().get('response_value'),
-            'session_id': r.to_dict().get('session_id'),
-            'timestamp': r.to_dict().get('timestamp').isoformat() if r.to_dict().get('timestamp') else None
-        }
-        for r in responses_ref
-    ]
+        # 📥 **Fetch responses for the given user_id**
+        responses_ref = db.collection('responses').where('user_id', '==', query_user_id).stream()
+        responses = [
+            {
+                'question_id': r.to_dict().get('question_id'),
+                'response_value': r.to_dict().get('response_value'),
+                'session_id': r.to_dict().get('session_id'),
+                'timestamp': r.to_dict().get('timestamp').isoformat() if r.to_dict().get('timestamp') else None
+            }
+            for r in responses_ref
+        ]
 
-    if not responses:
-        return cors_enabled_response({'message': 'No responses available for this user'}, 404)
+        if not responses:
+            return cors_enabled_response({'message': 'No responses available for this user'}, 404)
 
-    return cors_enabled_response(responses, 200)
+        return cors_enabled_response(responses, 200)
+
+    except Exception as e:
+        print(f"Error fetching past responses: {e}")
+        return cors_enabled_response({'message': 'Error retrieving past responses'}, 500)
 
 
 @main_bp.route('/submit-answer', methods=['POST'])
@@ -389,34 +420,41 @@ def search_clients():
 
     user_role = decoded_token.get('role')
     user_id = decoded_token.get('id')
-    query = request.args.get('query', '').lower()
+    query = request.args.get('query', '').strip().lower()
 
     if not query:
         return cors_enabled_response({'message': 'Query parameter is required'}, 400)
 
-    # ✅ Admins can search all clients
-    if user_role == 'admin':
-        clients_ref = db.collection('users').where('role', '==', 'client').stream()
+    try:
+        # ✅ Admins can search all clients
+        if user_role == 'admin':
+            clients_ref = db.collection('users').where('role', '==', 'client').stream()
 
-    # ✅ Clinicians can only search their assigned clients
-    elif user_role == 'clinician':
-        clients_ref = db.collection('users').where('assigned_clinician_id', '==', user_id).stream()
+        # ✅ Clinicians can only search their assigned clients
+        elif user_role == 'clinician':
+            clients_ref = db.collection('users').where('assigned_clinician_id', '==', user_id).stream()
 
-    # ❌ Clients cannot search at all
-    else:
-        return cors_enabled_response({'message': 'Unauthorized: Clients cannot search for other users'}, 403)
+        # ❌ Clients cannot search at all
+        else:
+            return cors_enabled_response({'message': 'Unauthorized: Clients cannot search for other users'}, 403)
 
-    matching_clients = [
-        {
-            'id': client.id,
-            'first_name': client.to_dict().get('first_name', ''),
-            'last_name': client.to_dict().get('last_name', ''),
-        }
-        for client in clients_ref
-        if query in client.to_dict().get('first_name', '').lower() or query in client.to_dict().get('last_name', '').lower()
-    ]
+        # 🔍 Filter clients matching the search query
+        matching_clients = [
+            {
+                'id': client.id,
+                'first_name': client.to_dict().get('first_name', ''),
+                'last_name': client.to_dict().get('last_name', ''),
+            }
+            for client in clients_ref
+            if query in client.to_dict().get('first_name', '').lower()
+            or query in client.to_dict().get('last_name', '').lower()
+        ]
 
-    return cors_enabled_response({'clients': matching_clients}, 200)
+        return cors_enabled_response({'clients': matching_clients}, 200)
+
+    except Exception as e:
+        print(f"Error searching clients: {e}")
+        return cors_enabled_response({'message': 'Error retrieving client search results'}, 500)
 
 
 @main_bp.route('/search-all-clients', methods=['GET'])
@@ -426,25 +464,33 @@ def search_all_clients():
     if error_response:
         return cors_enabled_response(error_response, status_code)
 
+    # ✅ Only admins can use this route
     if decoded_token.get('role') != "admin":
-        return cors_enabled_response({'message': 'Unauthorized'}, 403)
+        return cors_enabled_response({'message': 'Unauthorized: Only admins can search all clients'}, 403)
 
-    query = request.args.get('query', '').lower()
+    query = request.args.get('query', '').strip().lower()
     if not query:
         return cors_enabled_response({'message': 'Query parameter is required'}, 400)
 
-    users_ref = db.collection('users').where('role', '==', 'client').stream()
-    matching_clients = [
-        {
-            'id': user.id,
-            'first_name': user.to_dict().get('first_name', ''),
-            'last_name': user.to_dict().get('last_name', '')
-        }
-        for user in users_ref
-        if query in user.to_dict().get('first_name', '').lower() or query in user.to_dict().get('last_name', '').lower()
-    ]
+    try:
+        # 🔍 Fetch all clients from Firestore
+        users_ref = db.collection('users').where('role', '==', 'client').stream()
+        matching_clients = [
+            {
+                'id': user.id,
+                'first_name': user.to_dict().get('first_name', ''),
+                'last_name': user.to_dict().get('last_name', '')
+            }
+            for user in users_ref
+            if query in user.to_dict().get('first_name', '').lower()
+            or query in user.to_dict().get('last_name', '').lower()
+        ]
 
-    return cors_enabled_response({'clients': matching_clients}, 200)
+        return cors_enabled_response({'clients': matching_clients}, 200)
+
+    except Exception as e:
+        print(f"Error searching all clients: {e}")
+        return cors_enabled_response({'message': 'Error retrieving all client search results'}, 500)
 
 
 @main_bp.route('/user-info', methods=['GET'])
@@ -542,7 +588,7 @@ def generate_invite():
 
 @main_bp.route('/remove-clinician', methods=['POST'])
 def remove_clinician():
-    """Remove a clinician by their ID."""
+    """Remove a clinician by their ID and reassign clients."""
     data = request.get_json()
     clinician_id = data.get('clinician_id')
 
@@ -550,24 +596,36 @@ def remove_clinician():
         return cors_enabled_response({'message': 'Clinician ID is required'}, 400)
 
     try:
-        users_ref = db.collection('users').document(clinician_id)
-        if not users_ref.get().exists:
-            return cors_enabled_response({'message': 'Clinician not found in users collection'}, 404)
-        users_ref.delete()
+        clinician_doc = db.collection('users').document(clinician_id).get()
+        if not clinician_doc.exists:
+            return cors_enabled_response({'message': 'Clinician not found'}, 404)
 
-        clinicians_ref = db.collection('clinicians').document(clinician_id)
-        if not clinicians_ref.get().exists:
-            return cors_enabled_response({'message': 'Clinician not found in clinicians collection'}, 404)
-        clinicians_ref.delete()
+        # ✅ Remove clinician from `users` collection
+        db.collection('users').document(clinician_id).delete()
 
-        return cors_enabled_response({'message': 'Clinician removed successfully'}, 200)
+        # ✅ Remove clinician from `clinicians` collection
+        db.collection('clinicians').document(clinician_id).delete()
+
+        # 🔄 **Reassign Clients**
+        clients_ref = db.collection('users').where('assigned_clinician_id', '==', clinician_id).stream()
+        client_updates = []
+        for client in clients_ref:
+            client_updates.append(client.id)
+            db.collection('users').document(client.id).update({'assigned_clinician_id': None})
+
+        return cors_enabled_response({
+            'message': 'Clinician removed successfully',
+            'clients_updated': client_updates  # For debugging purposes
+        }, 200)
+
     except Exception as e:
+        print(f"Error removing clinician: {e}")
         return cors_enabled_response({'message': 'An error occurred while removing the clinician', 'error': str(e)}, 500)
 
 
 @main_bp.route('/remove-admin', methods=['POST'])
 def remove_admin():
-    """Remove an admin by their ID."""
+    """Remove an admin by their ID, also removing them as a clinician if applicable."""
     data = request.get_json()
     admin_id = data.get('admin_id')
 
@@ -575,25 +633,37 @@ def remove_admin():
         return cors_enabled_response({'message': 'Admin ID is required'}, 400)
 
     try:
-        # ✅ Remove from 'users' collection
-        users_ref = db.collection('users').document(admin_id)
-        if not users_ref.get().exists:
-            return cors_enabled_response({'message': 'Admin not found in users collection'}, 404)
-        users_ref.delete()
+        admin_doc = db.collection('users').document(admin_id).get()
+        if not admin_doc.exists:
+            return cors_enabled_response({'message': 'Admin not found'}, 404)
 
-        # ✅ Remove from 'admins' collection
-        admins_ref = db.collection('admins').document(admin_id)
-        if not admins_ref.get().exists:
-            return cors_enabled_response({'message': 'Admin not found in admins collection'}, 404)
-        admins_ref.delete()
+        # ✅ Remove from `users` collection
+        db.collection('users').document(admin_id).delete()
 
-        # ✅ If admin was also a clinician, remove from 'clinicians'
-        clinicians_ref = db.collection('clinicians').document(admin_id)
-        if clinicians_ref.get().exists:
-            clinicians_ref.delete()
+        # ✅ Remove from `admins` collection
+        db.collection('admins').document(admin_id).delete()
+
+        # ✅ If admin was also a clinician, remove from `clinicians`
+        clinician_doc = db.collection('clinicians').document(admin_id).get()
+        if clinician_doc.exists:
+            db.collection('clinicians').document(admin_id).delete()
+
+            # 🔄 **Reassign Clients**
+            clients_ref = db.collection('users').where('assigned_clinician_id', '==', admin_id).stream()
+            client_updates = []
+            for client in clients_ref:
+                client_updates.append(client.id)
+                db.collection('users').document(client.id).update({'assigned_clinician_id': None})
+
+            return cors_enabled_response({
+                'message': 'Admin removed successfully (also removed as a clinician)',
+                'clients_updated': client_updates  # For debugging purposes
+            }, 200)
 
         return cors_enabled_response({'message': 'Admin removed successfully'}, 200)
+
     except Exception as e:
+        print(f"Error removing admin: {e}")
         return cors_enabled_response({'message': 'An error occurred while removing the admin', 'error': str(e)}, 500)
 
 
@@ -654,6 +724,39 @@ def get_clinician_data():
 
     except Exception as e:
         return cors_enabled_response({'message': 'Failed to fetch clinician data.', 'error': str(e)}, 500)
+    
+@main_bp.route('/logout-device', methods=['POST'])
+def logout_device():
+    """Log out the current device but keep other sessions active."""
+    decoded_token, error_response, status_code = validate_token()
+    if error_response:
+        return cors_enabled_response(error_response, status_code)
+
+    user_id = decoded_token.get('id')
+    device_token = decoded_token.get('device_token')
+
+    # 🔥 Remove only **this** device session
+    db.collection('users').document(user_id).collection('sessions').document(device_token).delete()
+
+    return cors_enabled_response({'message': 'Logged out from this device successfully'}, 200)
+
+
+@main_bp.route('/logout-all', methods=['POST'])
+def logout_all():
+    """Log out from all devices for the user."""
+    decoded_token, error_response, status_code = validate_token()
+    if error_response:
+        return cors_enabled_response(error_response, status_code)
+
+    user_id = decoded_token.get('id')
+
+    # 🔥 Remove **all** sessions for this user
+    sessions_ref = db.collection('users').document(user_id).collection('sessions')
+    for session in sessions_ref.stream():
+        session.reference.delete()
+
+    return cors_enabled_response({'message': 'Logged out from all devices'}, 200)
+
 
 """@main_bp.route('/forgot-password', methods=['POST'])
 def forgot_password():

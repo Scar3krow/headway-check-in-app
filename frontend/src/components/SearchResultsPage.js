@@ -3,40 +3,43 @@ import { useNavigate, useLocation } from "react-router-dom";
 import "../styles/global.css"; // Consolidated global styles
 import "../styles/dashboard.css"; // Dashboard-specific styles
 
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000"
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
 const SearchResultsPage = () => {
     const [searchResults, setSearchResults] = useState([]);
     const [errorMessage, setErrorMessage] = useState("");
     const navigate = useNavigate();
     const location = useLocation();
-
     const query = new URLSearchParams(location.search).get("query");
 
     useEffect(() => {
+        if (!query) return;
+
         const fetchSearchResults = async () => {
             try {
                 const token = localStorage.getItem("token");
-                const response = await fetch(
-                    `${API_URL}/search-clients?query=${query}`,
-                    {
-                        headers: { Authorization: `Bearer ${token}` },
-                    }
-                );
+                const role = localStorage.getItem("role");
+
+                // ✅ **Admins search all clients, Clinicians only their assigned clients**
+                const searchUrl = role === "admin"
+                    ? `${API_URL}/search-all-clients?query=${query}`
+                    : `${API_URL}/search-clients?query=${query}`;
+
+                const response = await fetch(searchUrl, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
 
                 if (!response.ok) throw new Error("Failed to fetch search results");
 
                 const data = await response.json();
-                setSearchResults(data.clients);
+                setSearchResults(data.clients || []);
             } catch (error) {
                 console.error("Error fetching search results:", error);
                 setErrorMessage("Error fetching search results. Please try again later.");
             }
         };
 
-        if (query) {
-            fetchSearchResults();
-        }
+        fetchSearchResults();
     }, [query]);
 
     const handleClientSelect = (clientId) => {

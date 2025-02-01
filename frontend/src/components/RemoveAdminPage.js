@@ -4,7 +4,7 @@ import axios from "axios";
 import "../styles/global.css"; // Consolidated global styles
 import "../styles/forms.css"; // Form-specific styles
 
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000"
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
 const RemoveAdminPage = () => {
     const [admins, setAdmins] = useState([]);
@@ -14,27 +14,27 @@ const RemoveAdminPage = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        const fetchAdmins = async () => {
-            try {
-                const token = localStorage.getItem("token");
-                const response = await axios.get(`${API_URL}/get-admins`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-
-                if (response.data && Array.isArray(response.data.admins)) {
-                    setAdmins(response.data.admins);
-                } else {
-                    console.error("Unexpected data structure from /get-admins:", response.data);
-                    setAdmins([]);
-                }
-            } catch (error) {
-                console.error("Error fetching admins:", error);
-                setError("Failed to fetch admins. Please try again.");
-            }
-        };
-
         fetchAdmins();
     }, []);
+
+    const fetchAdmins = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            const response = await axios.get(`${API_URL}/get-admins`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            if (response.data && Array.isArray(response.data.admins)) {
+                setAdmins(response.data.admins);
+            } else {
+                console.error("Unexpected data structure from /get-admins:", response.data);
+                setAdmins([]);
+            }
+        } catch (error) {
+            console.error("Error fetching admins:", error);
+            setError("Failed to fetch admins. Please try again.");
+        }
+    };
 
     const handleRemoveAdmin = async () => {
         setError("");
@@ -47,15 +47,24 @@ const RemoveAdminPage = () => {
 
         try {
             const token = localStorage.getItem("token");
+
+            // ✅ Request admin removal from backend
             await axios.post(
                 `${API_URL}/remove-admin`,
                 { admin_id: selectedAdminId },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
+            // ✅ Log out removed admin from all devices
+            await axios.post(
+                `${API_URL}/logout-all`,
+                { user_id: selectedAdminId },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
             setSuccessMessage("Admin removed successfully.");
-            setAdmins(admins.filter((a) => a.id !== selectedAdminId));
-            setSelectedAdminId(""); // Reset the dropdown
+            setAdmins(admins.filter((admin) => admin.id !== selectedAdminId));
+            setSelectedAdminId(""); // Reset dropdown
         } catch (error) {
             console.error("Error removing admin:", error);
             setError("Failed to remove admin. Please try again.");

@@ -14,27 +14,27 @@ const RemoveClinicianPage = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        const fetchClinicians = async () => {
-            try {
-                const token = localStorage.getItem("token");
-                const response = await axios.get(`${API_URL}/get-clinicians`, {  // ✅ FIXED
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-
-                if (response.data && Array.isArray(response.data.clinicians)) {
-                    setClinicians(response.data.clinicians);
-                } else {
-                    console.error("Unexpected data structure from /get-clinicians:", response.data);
-                    setClinicians([]);
-                }
-            } catch (error) {
-                console.error("Error fetching clinicians:", error);
-                setError("Failed to fetch clinicians. Please try again.");
-            }
-        };
-
         fetchClinicians();
     }, []);
+
+    const fetchClinicians = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            const response = await axios.get(`${API_URL}/get-clinicians`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            if (response.data && Array.isArray(response.data.clinicians)) {
+                setClinicians(response.data.clinicians);
+            } else {
+                console.error("Unexpected data structure from /get-clinicians:", response.data);
+                setClinicians([]);
+            }
+        } catch (error) {
+            console.error("Error fetching clinicians:", error);
+            setError("Failed to fetch clinicians. Please try again.");
+        }
+    };
 
     const handleRemoveClinician = async () => {
         setError("");
@@ -47,14 +47,24 @@ const RemoveClinicianPage = () => {
 
         try {
             const token = localStorage.getItem("token");
-            await axios.post(`${API_URL}/remove-clinician`,  // ✅ FIXED
+
+            // ✅ Request clinician removal from backend
+            await axios.post(
+                `${API_URL}/remove-clinician`,
                 { clinician_id: selectedClinicianId },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
+            // ✅ Log out removed clinician from all devices
+            await axios.post(
+                `${API_URL}/logout-all`,
+                { user_id: selectedClinicianId },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
             setSuccessMessage("Clinician removed successfully.");
-            setClinicians(clinicians.filter((c) => c.id !== selectedClinicianId));
-            setSelectedClinicianId("");
+            setClinicians(clinicians.filter((clinician) => clinician.id !== selectedClinicianId));
+            setSelectedClinicianId(""); // Reset dropdown
         } catch (error) {
             console.error("Error removing clinician:", error);
             setError("Failed to remove clinician. Please try again.");

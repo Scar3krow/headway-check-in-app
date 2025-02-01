@@ -3,19 +3,36 @@ import axios from "axios";
 import "../styles/global.css"; // Consolidated global styles
 import "../styles/forms.css"; // Form-specific styles
 
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000"
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
 const ForgotPassword = () => {
     const [email, setEmail] = useState("");
     const [message, setMessage] = useState("");
+    const [error, setError] = useState("");
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setMessage("");
+        setError("");
+
         try {
-            await axios.post(`${API_URL}/forgot-password`, { email });
+            const deviceToken = localStorage.getItem("device_token"); // 🔐 Include device token for security
+
+            await axios.post(
+                `${API_URL}/forgot-password`,
+                { email },
+                {
+                    headers: {
+                        "Device-Token": deviceToken, // 🔐 Secure API Request
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+
             setMessage("If this email exists in our system, you'll receive a reset link shortly.");
         } catch (error) {
-            setMessage("An error occurred. Please try again.");
+            console.error("Error requesting password reset:", error);
+            setError("An error occurred. Please try again.");
         }
     };
 
@@ -39,11 +56,8 @@ const ForgotPassword = () => {
                     </button>
                 </div>
             </form>
-            {message && (
-                <p className={`message ${message.includes("reset link") ? "success-message" : "error-message"}`}>
-                    {message}
-                </p>
-            )}
+            {message && <p className="success-message">{message}</p>}
+            {error && <p className="error-message">{error}</p>}
         </div>
     );
 };

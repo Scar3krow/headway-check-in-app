@@ -32,12 +32,13 @@ const ProtectedRoute = ({ element, roleRequired }) => {
         return <Navigate to="/login" replace />;
     }
 
-    // ✅ Admins get access to clinician pages
+    // ✅ Admins can access all Clinician pages
     const allowedRoles = Array.isArray(roleRequired) ? roleRequired : [roleRequired];
     if (role === "admin" && allowedRoles.includes("clinician")) {
         return element;
     }
 
+    // ❌ Restrict access if role is not permitted
     if (!allowedRoles.includes(role)) {
         return <Navigate to="/unauthorized" replace />;
     }
@@ -51,7 +52,7 @@ function App() {
             <div>
                 <Navbar />
                 <Routes>
-                    {/* Public Routes */}
+                    {/* 🟢 Public Routes */}
                     <Route path="/" element={<Home />} />
                     <Route path="*" element={<Home />} /> 
                     <Route path="/register" element={<Register />} />

@@ -1,14 +1,32 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import '../styles/global.css';
-import '../styles/home.css';
+import React, { useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import "../styles/global.css";
+import "../styles/home.css";
 
 const Home = () => {
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        // 🔐 **Redirect Logged-in Users**
+        const token = localStorage.getItem("token");
+        const role = localStorage.getItem("role");
+
+        if (token) {
+            if (role === "client") {
+                navigate("/client-dashboard");
+            } else if (role === "clinician") {
+                navigate("/clinician-dashboard");
+            } else if (role === "admin") {
+                navigate("/admin-dashboard");
+            }
+        }
+    }, [navigate]);
+
     return (
         <div className="home-container">
-            <h1 className="home-title">Headway Check-In App</h1>
+            <h1 className="home-title">Welcome to Headway Check-In App</h1>
             <p className="home-description">
-                Welcome! This app helps clients and clinicians stay connected and track progress with a simple, easy-to-use questionnaire.
+                Stay connected and track progress with a simple, easy-to-use questionnaire.
             </p>
             <div className="home-buttons">
                 <Link to="/login" className="dashboard-button primary">

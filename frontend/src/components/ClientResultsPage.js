@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import "../styles/global.css"; // Consolidated global styles
-import "../styles/dashboard.css"; // Dashboard-specific styles
-import "../styles/table.css"; // Shared table styles
-import ClinicianGraph from "./ClinicianGraph"; // For the graph display
+import "../styles/global.css";
+import "../styles/dashboard.css";
+import "../styles/table.css";
+import ClinicianGraph from "./ClinicianGraph";
 
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000"
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
 const ClientResultsPage = () => {
     const { userId } = useParams();
@@ -20,52 +20,57 @@ const ClientResultsPage = () => {
         const fetchClientData = async () => {
             try {
                 const token = localStorage.getItem("token");
-            
+                const deviceToken = localStorage.getItem("device_token");
+
+                if (!token || !deviceToken) {
+                    setErrorMessage("Session expired. Please log in again.");
+                    navigate("/login");
+                    return;
+                }
+
                 // Fetch client info
-                const userInfoResponse = await fetch(
-                    `${API_URL}/user-info?user_id=${userId}`,
-                    {
-                        headers: { Authorization: `Bearer ${token}` },
-                    }
-                );
-            
+                const userInfoResponse = await fetch(`${API_URL}/user-info?user_id=${userId}`, {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Device-Token": deviceToken,
+                    },
+                });
+
                 if (!userInfoResponse.ok) {
                     throw new Error("Failed to fetch client info");
                 }
-            
+
                 const userInfo = await userInfoResponse.json();
                 setClientName(`${userInfo.first_name} ${userInfo.last_name}`);
-            
+
                 // Fetch past responses
-                const responsesResponse = await fetch(
-                    `${API_URL}/past-responses?user_id=${userId}`,
-                    {
-                        headers: { Authorization: `Bearer ${token}` },
-                    }
-                );
-            
+                const responsesResponse = await fetch(`${API_URL}/past-responses?user_id=${userId}`, {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Device-Token": deviceToken,
+                    },
+                });
+
                 const responseData = await responsesResponse.json();
-            
+
                 if (responsesResponse.ok) {
                     if (responseData.message === "No responses available for this user") {
-                        setGraphData(null); // No graph data available
-                        setResponsesTable({ rows: [], sessionDates: [] }); // Clear table data
+                        setGraphData(null);
+                        setResponsesTable({ rows: [], sessionDates: [] });
                     } else {
-                        formatResponsesTable(responseData); // Process the valid data
+                        formatResponsesTable(responseData);
                     }
                 } else {
                     throw new Error(responseData.message || "Failed to fetch client responses.");
                 }
             } catch (error) {
                 console.error("Error fetching client data:", error);
-                setErrorMessage(
-                    ""
-                );
-            }            
+                setErrorMessage("Error fetching client data. Please try again.");
+            }
         };
 
         fetchClientData();
-    }, [userId]);
+    }, [userId, navigate]);
 
     const formatResponsesTable = (data) => {
         const sessions = data.reduce((acc, response) => {
@@ -81,10 +86,7 @@ const ClientResultsPage = () => {
             return acc;
         }, {});
 
-        // Sort sessions by date in ascending order
-        const sortedSessionIds = Object.keys(sessions).sort(
-            (a, b) => sessions[a].date - sessions[b].date
-        );
+        const sortedSessionIds = Object.keys(sessions).sort((a, b) => sessions[a].date - sessions[b].date);
 
         const tableRows = Object.keys(data[0]?.responses || {}).map((questionId) => ({
             questionText: `Question ${questionId}`,
@@ -120,7 +122,7 @@ const ClientResultsPage = () => {
                     data: totalScores,
                     borderColor: "#587266",
                     backgroundColor: "rgba(53, 61, 95, 0.2)",
-                    pointBackgroundColor: "##587266",
+                    pointBackgroundColor: "#587266",
                     pointBorderColor: "#587266",
                     tension: 0.4,
                 },
@@ -135,7 +137,7 @@ const ClientResultsPage = () => {
     };
 
     const handleSessionClick = (sessionId) => {
-        navigate(`/session-details/${sessionId}`);
+        navigate(`/client-session-details/${sessionId}`);
     };
 
     return (

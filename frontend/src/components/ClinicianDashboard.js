@@ -14,7 +14,7 @@ const ClinicianDashboard = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        // 🔥 **Detect if Logged in User is an Admin**
+        // 🔥 **Detect if Logged-in User is an Admin**
         const role = localStorage.getItem("role");
         setIsAdmin(role === "admin");
     }, []);
@@ -30,6 +30,7 @@ const ClinicianDashboard = () => {
 
         try {
             const token = localStorage.getItem("token");
+            const deviceToken = localStorage.getItem("device_token");
 
             // ✅ Admins Search All Clients, Clinicians Only Search Their Own
             const searchUrl = isAdmin
@@ -37,7 +38,10 @@ const ClinicianDashboard = () => {
                 : `${API_URL}/search-clients?query=${query}`;
 
             const response = await fetch(searchUrl, {
-                headers: { Authorization: `Bearer ${token}` },
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Device-Token": deviceToken, // 🔐 Secure API Request
+                },
             });
 
             if (!response.ok) throw new Error("Failed to fetch client options");
@@ -64,9 +68,26 @@ const ClinicianDashboard = () => {
         navigate(`/client-results/${clientId}`);
     };
 
-    const handleLogout = () => {
-        localStorage.removeItem("token");
-        navigate("/login");
+    const handleLogout = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            const deviceToken = localStorage.getItem("device_token");
+
+            await fetch(`${API_URL}/logout-device`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ device_token: deviceToken }),
+            });
+
+            localStorage.removeItem("token");
+            localStorage.removeItem("device_token");
+            navigate("/login");
+        } catch (error) {
+            console.error("Error logging out:", error);
+        }
     };
 
     const handleSwitchToAdmin = () => {

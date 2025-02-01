@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ClientGraph from "./ClientGraph";
-import "../styles/global.css"; // Consolidated global styles
-import "../styles/table.css"; // Shared table styles
-import "../styles/dashboard.css"; // Dashboard-specific styles
-import "../styles/responsespage.css"; // Page-specific styles
+import "../styles/global.css";
+import "../styles/table.css";
+import "../styles/dashboard.css";
+import "../styles/responsespage.css";
 
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000"
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
 const ClientResponsesPage = () => {
     const [responsesTable, setResponsesTable] = useState({ rows: [], sessionDates: [], sessionIds: [] });
@@ -18,19 +18,21 @@ const ClientResponsesPage = () => {
         const fetchResponses = async () => {
             try {
                 const token = localStorage.getItem("token");
+                const deviceToken = localStorage.getItem("device_token");
                 const userId = localStorage.getItem("user_id");
 
-                if (!userId) {
-                    setErrorMessage("User ID not found. Please log in again.");
+                if (!token || !deviceToken || !userId) {
+                    setErrorMessage("Session expired. Please log in again.");
+                    navigate("/login");
                     return;
                 }
 
-                const response = await fetch(
-                    `${API_URL}/past-responses?user_id=${userId}`,
-                    {
-                        headers: { Authorization: `Bearer ${token}` },
-                    }
-                );
+                const response = await fetch(`${API_URL}/past-responses?user_id=${userId}`, {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Device-Token": deviceToken,
+                    },
+                });
 
                 const responseData = await response.json();
 
@@ -46,12 +48,12 @@ const ClientResponsesPage = () => {
                 }
             } catch (error) {
                 console.error("Error fetching responses:", error);
-                setErrorMessage("");
+                setErrorMessage("Error fetching responses. Please try again later.");
             }
         };
 
         fetchResponses();
-    }, []);
+    }, [navigate]);
 
     const formatResponsesTable = (data) => {
         const sessions = data.reduce((acc, response) => {
@@ -123,14 +125,36 @@ const ClientResponsesPage = () => {
             responseValue: row.responses[sessionIndex],
         }));
 
-        // Store the session data in localStorage for the details page
-        localStorage.setItem(
-            "selectedSessionData",
-            JSON.stringify({ sessionId, sessionDate, sessionData })
-        );
-
-        // Navigate to the session details page with sessionId
+        localStorage.setItem("selectedSessionData", JSON.stringify({ sessionId, sessionDate, sessionData }));
         navigate(`/session-details/${sessionId}`);
+    };
+
+    const handleLogout = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            const deviceToken = localStorage.getItem("device_token");
+
+            if (token && deviceToken) {
+                await fetch(`${API_URL}/logout-device`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                        "Device-Token": deviceToken,
+                    },
+                    body: JSON.stringify({ device_token: deviceToken }),
+                });
+            }
+        } catch (error) {
+            console.error("Error logging out:", error);
+        }
+
+        localStorage.removeItem("token");
+        localStorage.removeItem("role");
+        localStorage.removeItem("user_id");
+        localStorage.removeItem("device_token");
+
+        navigate("/login");
     };
 
     return (
@@ -150,11 +174,11 @@ const ClientResponsesPage = () => {
                 </>
             )}
             <div className="form-actions">
-                <button
-                    onClick={() => navigate("/client-dashboard")}
-                    className="dashboard-button secondary"
-                >
+                <button onClick={() => navigate("/client-dashboard")} className="dashboard-button secondary">
                     Back to Dashboard
+                </button>
+                <button onClick={handleLogout} className="dashboard-button danger">
+                    Logout
                 </button>
             </div>
             {graphData && (

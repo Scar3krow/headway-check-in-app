@@ -12,8 +12,6 @@ const ClientDashboard = () => {
     const [isCheckInVisible, setIsCheckInVisible] = useState(false);
     const [questions, setQuestions] = useState([]);
     const [responses, setResponses] = useState({});
-    const [responsesTable, setResponsesTable] = useState({ rows: [], sessionDates: [] });
-    const [loadingPastResponses, setLoadingPastResponses] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
     const navigate = useNavigate();
 
@@ -21,6 +19,7 @@ const ClientDashboard = () => {
         const fetchQuestions = async () => {
             const token = localStorage.getItem("token");
             const role = localStorage.getItem("role");
+            const deviceToken = localStorage.getItem("device_token"); // 🔥 Added device token
 
             if (!token || role !== "client") {
                 navigate("/login");
@@ -29,7 +28,10 @@ const ClientDashboard = () => {
 
             try {
                 const response = await fetch(`${API_URL}/questions`, {
-                    headers: { Authorization: `Bearer ${token}` },
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Device-Token": deviceToken, // 🔥 Send device token
+                    },
                 });
 
                 if (!response.ok) {
@@ -53,6 +55,7 @@ const ClientDashboard = () => {
 
     const handleSubmitResponses = async () => {
         const token = localStorage.getItem("token");
+        const deviceToken = localStorage.getItem("device_token"); // 🔥 Added device token
         const payload = {
             responses: Object.keys(responses).map((questionId) => ({
                 question_id: questionId,
@@ -61,11 +64,12 @@ const ClientDashboard = () => {
         };
 
         try {
-            const response = await fetch(`${API_URL}/submit-responses`, {  // ✅ Use dynamic API URL
+            const response = await fetch(`${API_URL}/submit-responses`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`,
+                    "Device-Token": deviceToken, // 🔥 Send device token
                 },
                 body: JSON.stringify(payload),
             });
@@ -86,10 +90,33 @@ const ClientDashboard = () => {
         navigate("/client-responses");
     };
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            const deviceToken = localStorage.getItem("device_token");
+
+            if (token && deviceToken) {
+                await fetch(`${API_URL}/logout-device`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                        "Device-Token": deviceToken,
+                    },
+                    body: JSON.stringify({ device_token: deviceToken }),
+                });
+            }
+        } catch (error) {
+            console.error("Error logging out:", error);
+        }
+
+        // ✅ Clear all stored session data
         localStorage.removeItem("token");
         localStorage.removeItem("role");
-        navigate("/login");
+        localStorage.removeItem("user_id");
+        localStorage.removeItem("device_token");
+
+        navigate("/login"); // Redirect to login
     };
 
     return (
@@ -113,7 +140,7 @@ const ClientDashboard = () => {
                         Logout
                     </button>
                 </div>
-    
+
                 {isCheckInVisible && (
                     <div className="check-in-section">
                         <form className="questionnaire-form">
@@ -167,7 +194,7 @@ const ClientDashboard = () => {
             </div>
             {errorMessage && <p className="error-message">{errorMessage}</p>}
         </div>
-    );    
+    );
 };
 
 export default ClientDashboard;

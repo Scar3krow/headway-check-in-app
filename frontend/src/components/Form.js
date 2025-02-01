@@ -1,34 +1,53 @@
-import React, { useState, useEffect } from 'react';
-import '../styles/global.css'; // Consolidated global styles
-import '../styles/forms.css'; // Form-specific styles
+import React, { useState, useEffect } from "react";
+import "../styles/global.css"; // Consolidated global styles
+import "../styles/forms.css"; // Form-specific styles
 
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000"
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
 const Form = () => {
     const [questions, setQuestions] = useState([]);
     const [responses, setResponses] = useState({});
-    const [message, setMessage] = useState('');
+    const [message, setMessage] = useState("");
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
+        const fetchQuestions = async () => {
+            try {
+                const token = localStorage.getItem("token");
+                const response = await fetch(`${API_URL}/questions`, {
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Device-Token": localStorage.getItem("device_token"), // 🔐 Secure API Request
+                        "Content-Type": "application/json",
+                    },
+                });
 
-        fetch(`${API_URL}/questions`, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-            },
-        })
-            .then((res) => res.json())
-            .then((data) => setQuestions(data))
-            .catch((error) => console.error('Error fetching questions:', error));
+                if (!response.ok) throw new Error("Failed to fetch questions.");
+                const data = await response.json();
+                setQuestions(data);
+                setLoading(false);
+            } catch (error) {
+                console.error("Error fetching questions:", error);
+                setMessage("Failed to load questions. Please try again.");
+                setLoading(false);
+            }
+        };
+
+        fetchQuestions();
     }, []);
 
     const handleResponseChange = (questionId, value) => {
-        setResponses({ ...responses, [questionId]: value });
+        setResponses((prevResponses) => ({
+            ...prevResponses,
+            [questionId]: value,
+        }));
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        const token = localStorage.getItem('token');
+        setMessage(""); // Reset message before submission
+
+        const token = localStorage.getItem("token");
 
         const payload = {
             responses: Object.keys(responses).map((questionId) => ({
@@ -38,27 +57,37 @@ const Form = () => {
         };
 
         try {
-            const response = await fetch('http://127.0.0.1:5000/submit-responses', {
-                method: 'POST',
+            const response = await fetch(`${API_URL}/submit-responses`, {
+                method: "POST",
                 headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`,
+                    "Device-Token": localStorage.getItem("device_token"), // 🔐 Secure API Request
                 },
                 body: JSON.stringify(payload),
             });
+
             const data = await response.json();
-            setMessage(data.message);
+
+            if (!response.ok) {
+                throw new Error(data.message || "Failed to submit responses.");
+            }
+
+            setMessage("Responses submitted successfully!");
+            setResponses({}); // Reset responses
         } catch (error) {
-            console.error('Error submitting responses:', error);
-            setMessage('An error occurred. Please try again.');
+            console.error("Error submitting responses:", error);
+            setMessage("An error occurred. Please try again.");
         }
     };
 
     return (
         <div className="form-container">
             <h2 className="form-title">Questionnaire</h2>
-            {questions.length === 0 ? (
+            {loading ? (
                 <p className="loading-message">Loading questions...</p>
+            ) : questions.length === 0 ? (
+                <p className="error-message">No questions available.</p>
             ) : (
                 <form onSubmit={handleSubmit} className="form-content">
                     {questions.map((q) => (
@@ -68,6 +97,7 @@ const Form = () => {
                                 type="number"
                                 min="1"
                                 max="7"
+                                value={responses[q.id] || ""}
                                 onChange={(e) => handleResponseChange(q.id, parseInt(e.target.value))}
                                 className="form-input"
                                 required
@@ -81,9 +111,11 @@ const Form = () => {
                     </div>
                 </form>
             )}
-            {message && <p className={`message ${message.includes('success') ? 'success-message' : 'error-message'}`}>
-                {message}
-            </p>}
+            {message && (
+                <p className={`message ${message.includes("success") ? "success-message" : "error-message"}`}>
+                    {message}
+                </p>
+            )}
         </div>
     );
 };

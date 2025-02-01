@@ -25,11 +25,16 @@ const AdminDashboard = () => {
         setError("");
         try {
             const token = localStorage.getItem("token");
+            const deviceToken = localStorage.getItem("device_token"); // 🔥 Added device token
+
             const response = await axios.post(
                 `${API_URL}/generate-invite`,
                 { role },
                 {
-                    headers: { Authorization: `Bearer ${token}` },
+                    headers: { 
+                        Authorization: `Bearer ${token}`,
+                        "Device-Token": deviceToken, // 🔥 Send device token
+                    },
                 }
             );
 
@@ -55,10 +60,34 @@ const AdminDashboard = () => {
         }
     };
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            const deviceToken = localStorage.getItem("device_token");
+
+            if (token && deviceToken) {
+                await axios.post(
+                    `${API_URL}/logout-device`, // 🔥 Logout specific device
+                    { device_token: deviceToken },
+                    {
+                        headers: { 
+                            Authorization: `Bearer ${token}`,
+                            "Device-Token": deviceToken,
+                        },
+                    }
+                );
+            }
+        } catch (error) {
+            console.error("Error logging out:", error);
+        }
+
+        // ✅ Clear all stored session data
         localStorage.removeItem("token");
         localStorage.removeItem("role");
-        navigate("/login");
+        localStorage.removeItem("user_id");
+        localStorage.removeItem("device_token");
+
+        navigate("/login"); // Redirect to login
     };
 
     return (

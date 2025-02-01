@@ -15,63 +15,37 @@ const Register = () => {
         confirmPassword: "",
         inviteCode: "",
         role: "client", // Default role
-        assignedClinicianId: "", // For clients to select a clinician
+        assignedClinicianId: "",
     });
     const [error, setError] = useState("");
-    const [passwordFeedback, setPasswordFeedback] = useState({
-        length: false,
-        digitOrSpecial: false,
-    });
-    const [showPasswordFeedback, setShowPasswordFeedback] = useState(false);
     const [clinicians, setClinicians] = useState([]);
     const navigate = useNavigate();
 
     useEffect(() => {
-        // Fetch clinicians for clients
-        const fetchClinicians = async () => {
-            try {
-                const token = localStorage.getItem("token");
-                const response = await axios.get(`${API_URL}/get-clinicians`, {  // 👈 Uses API_URL
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-
-                if (response.data.clinicians) {
-                    setClinicians(response.data.clinicians);
-                } else {
-                    setClinicians([]);
-                }
-            } catch (err) {
-                console.error("Error fetching clinicians:", err);
-                setError("Failed to fetch clinicians. Please try again.");
-                setClinicians([]);
-            }
-        };
-
         if (formData.role === "client") {
             fetchClinicians();
         }
     }, [formData.role]);
 
+    const fetchClinicians = async () => {
+        try {
+            const response = await axios.get(`${API_URL}/get-clinicians`);
+            setClinicians(response.data.clinicians || []);
+        } catch (err) {
+            console.error("Error fetching clinicians:", err);
+            setError("Failed to fetch clinicians.");
+        }
+    };
+
     const validatePassword = (password) => {
-        const length = password.length >= 6;
-        const digitOrSpecial = /[\d@$!%*?&]/.test(password);
-        setPasswordFeedback({ length, digitOrSpecial });
-        return length && digitOrSpecial;
+        return password.length >= 6 && /[\d@$!%*?&]/.test(password);
     };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData({ ...formData, [name]: value });
 
-        if (name === "password") {
-            if (!showPasswordFeedback) {
-                setShowPasswordFeedback(true);
-            }
-            validatePassword(value);
-        }
-
         if (name === "role") {
-            // Reset invite code and clinician ID when switching roles
             setFormData({
                 ...formData,
                 inviteCode: "",
@@ -85,46 +59,41 @@ const Register = () => {
         e.preventDefault();
         setError("");
 
-        const {
-            firstName,
-            lastName,
-            email,
-            password,
-            confirmPassword,
-            role,
-            inviteCode,
-            assignedClinicianId,
-        } = formData;
-
-        if (!firstName || !lastName || !email || !password || !confirmPassword) {
+        if (
+            !formData.firstName ||
+            !formData.lastName ||
+            !formData.email ||
+            !formData.password ||
+            !formData.confirmPassword
+        ) {
             setError("All fields are required.");
             return;
         }
 
-        if (password !== confirmPassword) {
+        if (formData.password !== formData.confirmPassword) {
             setError("Passwords do not match.");
             return;
         }
 
-        if (!validatePassword(password)) {
-            setError("Password does not meet the required conditions.");
+        if (!validatePassword(formData.password)) {
+            setError("Password must be at least 6 characters long and contain a digit or special character.");
             return;
         }
 
-        if ((role === "clinician" || role === "admin") && !inviteCode) {
+        if ((formData.role === "clinician" || formData.role === "admin") && !formData.inviteCode) {
             setError("Invite code is required for Clinician or Admin roles.");
             return;
         }
 
-        if (role === "client" && !assignedClinicianId) {
+        if (formData.role === "client" && !formData.assignedClinicianId) {
             setError("Please select a clinician.");
             return;
         }
 
         try {
-            if (role === "clinician" || role === "admin") {
-                const inviteResponse = await axios.post(`${API_URL}/validate-invite`, {  // 👈 Uses API_URL
-                    invite_code: inviteCode,
+            if (formData.role === "clinician" || formData.role === "admin") {
+                const inviteResponse = await axios.post(`${API_URL}/validate-invite`, {
+                    invite_code: formData.inviteCode,
                 });
 
                 if (inviteResponse.data.message !== "Invite code valid") {
@@ -133,17 +102,34 @@ const Register = () => {
                 }
             }
 
-            await axios.post(`${API_URL}/register`, {  // 👈 Uses API_URL
-                first_name: firstName,
-                last_name: lastName,
-                email,
-                password,
-                role,
-                invite_code: inviteCode,
-                assigned_clinician_id: assignedClinicianId,
+            const registerResponse = await axios.post(`${API_URL}/register`, {
+                first_name: formData.firstName,
+                last_name: formData.lastName,
+                email: formData.email,
+                password: formData.password,
+                role: formData.role,
+                invite_code: formData.inviteCode,
+                assigned_clinician_id: formData.assignedClinicianId,
             });
 
-            navigate("/login");
+            const { access_token, role, user_id, session_id } = registerResponse.data;
+
+            // ✅ Store user details & session in localStorage
+            localStorage.setItem("token", access_token);
+            localStorage.setItem("role", role);
+            localStorage.setItem("user_id", user_id);
+            localStorage.setItem("session_id", session_id);
+
+            // ✅ Redirect based on role
+            if (role === "admin") {
+                navigate("/admin-dashboard");
+            } else if (role === "client") {
+                navigate("/client-dashboard");
+            } else if (role === "clinician") {
+                navigate("/clinician-dashboard");
+            } else {
+                setError("Invalid role. Please contact support.");
+            }
         } catch (err) {
             console.error("Error during registration:", err);
             setError(err.response?.data?.message || "An error occurred. Please try again.");
@@ -206,16 +192,6 @@ const Register = () => {
                         required
                         className="form-input"
                     />
-                    {showPasswordFeedback && (
-                        <ul className="password-feedback">
-                            <li style={{ color: passwordFeedback.length ? "green" : "red" }}>
-                                At least 6 characters
-                            </li>
-                            <li style={{ color: passwordFeedback.digitOrSpecial ? "green" : "red" }}>
-                                At least one digit or special character
-                            </li>
-                        </ul>
-                    )}
                 </div>
                 <div className="form-group">
                     <label>Confirm Password:</label>

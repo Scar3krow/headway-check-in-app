@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import "../styles/global.css"; // Consolidated global styles
-import "../styles/forms.css"; // Retaining form-specific styles
+import { v4 as uuidv4 } from "uuid"; // ✅ Generate Unique Device Tokens
+import "../styles/global.css";
+import "../styles/forms.css";
 
-// 🔥 Dynamically Set API URL (Works in both Local & Live Deployments)
 const API_URL = process.env.REACT_APP_API_URL || "http://127.0.0.1:5000";
 
 const Login = () => {
@@ -16,6 +16,7 @@ const Login = () => {
     useEffect(() => {
         const token = localStorage.getItem("token");
         const role = localStorage.getItem("role");
+
         if (token) {
             if (role === "client") {
                 navigate("/client-dashboard");
@@ -30,28 +31,34 @@ const Login = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
-    
+
         if (!email || !password) {
             setError("Please enter both email and password.");
             return;
         }
-    
+
         try {
+            // ✅ Generate a Unique Device Token (Used for Multi-Session Security)
+            const deviceToken = uuidv4();
+
+            // ✅ Send Login Request
             const response = await axios.post(`${API_URL}/login`, {  
                 email,
                 password,
+                device_token: deviceToken, // 🔥 Send Device Token with Login Request
             });
-    
+
             const { access_token, role, user_id } = response.data;
-    
-            // ✅ Store role.
+
+            // ✅ Store Token & Device Token for Authentication
             localStorage.setItem("token", access_token);
-            localStorage.setItem("role", role); 
+            localStorage.setItem("role", role);
             localStorage.setItem("user_id", user_id);
-    
-            // ✅ **Fix: Redirect Admins Correctly**
+            localStorage.setItem("device_token", deviceToken); // 🔥 Store Device Token for Future Requests
+
+            // ✅ Redirect Based on Role
             if (role === "admin") {
-                navigate("/admin-dashboard");  // 🔥 Admins go to admin-dashboard
+                navigate("/admin-dashboard");
             } else if (role === "client") {
                 navigate("/client-dashboard");
             } else if (role === "clinician") {
