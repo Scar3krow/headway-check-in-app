@@ -5,7 +5,7 @@ import "../styles/forms.css"; // For form-related layouts and messages
 import "../styles/table.css"; // Shared table styles
 import "../styles/sessiondetails.css"; // Specific to this page
 
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000"
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
 const SessionDetailsPage = () => {
     const { sessionId } = useParams();
@@ -26,6 +26,12 @@ const SessionDetailsPage = () => {
         const fetchData = async () => {
             try {
                 const token = localStorage.getItem("token");
+                const role = localStorage.getItem("role"); // 🔥 Ensure we check role
+                
+                if (!token || !["client", "clinician", "admin"].includes(role)) {
+                    navigate("/unauthorized"); // Redirect if unauthorized
+                    return;
+                }
 
                 const [sessionResponse, questionsResponse] = await Promise.all([
                     fetch(`${API_URL}/session-details?session_id=${sessionId}`, {
@@ -41,6 +47,10 @@ const SessionDetailsPage = () => {
                         },
                     }),
                 ]);
+
+                if (sessionResponse.status === 401 || questionsResponse.status === 401) {
+                    throw new Error("Unauthorized access. You may not have permission.");
+                }
 
                 if (!sessionResponse.ok || !questionsResponse.ok) {
                     throw new Error("Failed to fetch data");
@@ -63,7 +73,7 @@ const SessionDetailsPage = () => {
         };
 
         fetchData();
-    }, [sessionId]);
+    }, [sessionId, navigate]);
 
     const handleBackToClientResults = () => {
         navigate(-1); // Navigate back to the previous page

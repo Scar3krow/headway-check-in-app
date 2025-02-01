@@ -26,27 +26,18 @@ import './styles/global.css';
 // 🔐 **Protected Route Component**
 const ProtectedRoute = ({ element, roleRequired }) => {
     const token = localStorage.getItem('token');
-    const role = localStorage.getItem('effective_role');
+    const role = localStorage.getItem('role');
 
     if (!token) {
         return <Navigate to="/login" replace />;
     }
 
-    // ✅ Allow admins to access clinician routes as well
-    const effectiveRoles = role === "admin" && roleRequired === "clinician"
-        ? ["clinician", "admin"] // Admins are treated like clinicians
-        : [].concat(roleRequired); // Convert roleRequired into an array if needed
-
-    if (roleRequired && !effectiveRoles.includes(role)) {
-        return <Navigate to="/unauthorized" replace />;
-    }
-
-    // Allow multiple roles if `roleRequired` is an array
-    if (roleRequired && ![].concat(roleRequired).includes(role)) {
-        return <Navigate to="/unauthorized" replace />;
-    }
-
+    // ✅ Admins get access to clinician pages
     const allowedRoles = Array.isArray(roleRequired) ? roleRequired : [roleRequired];
+    if (role === "admin" && allowedRoles.includes("clinician")) {
+        return element;
+    }
+
     if (!allowedRoles.includes(role)) {
         return <Navigate to="/unauthorized" replace />;
     }
@@ -77,7 +68,7 @@ function App() {
                     <Route path="/client-responses" element={<ProtectedRoute element={<ClientResponsesPage />} roleRequired="client" />} />
                     <Route path="/session-details/:sessionId" element={<ProtectedRoute element={<SessionDetailsPage />} roleRequired="client" />} />
 
-                    {/* Clinicians Only */}
+                    {/* Clinicians Only (Admins included) */}
                     <Route path="/clinician-dashboard" element={<ProtectedRoute element={<ClinicianDashboard />} roleRequired={["clinician", "admin"]} />} />
                     <Route path="/client-results/:userId" element={<ProtectedRoute element={<ClientResultsPage />} roleRequired={["clinician", "admin"]} />} />
                     <Route path="/client-session-details" element={<ProtectedRoute element={<ClientSessionDetailsPage />} roleRequired={["clinician", "admin"]} />} />

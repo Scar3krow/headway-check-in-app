@@ -15,7 +15,7 @@ const Login = () => {
 
     useEffect(() => {
         const token = localStorage.getItem("token");
-        const role = localStorage.getItem("effective_role");
+        const role = localStorage.getItem("role");
         if (token) {
             if (role === "client") {
                 navigate("/client-dashboard");
@@ -44,24 +44,17 @@ const Login = () => {
     
             const { access_token, role, user_id } = response.data;
     
-            // ✅ **Fix: Store `effective_role` correctly**
-            let effective_role = role;
-            if (role === "admin") {
-                effective_role = "clinician";  // Admins should also be clinicians
-            }
-    
-            // ✅ **Fix: Store both role & effective_role**
+            // ✅ Store role.
             localStorage.setItem("token", access_token);
-            localStorage.setItem("role", role);  // 🔥 This is still "admin"
-            localStorage.setItem("effective_role", effective_role);  // 🔥 This is now "clinician"
+            localStorage.setItem("role", role); 
             localStorage.setItem("user_id", user_id);
     
             // ✅ **Fix: Redirect Admins Correctly**
             if (role === "admin") {
                 navigate("/admin-dashboard");  // 🔥 Admins go to admin-dashboard
-            } else if (effective_role === "client") {
+            } else if (role === "client") {
                 navigate("/client-dashboard");
-            } else if (effective_role === "clinician") {
+            } else if (role === "clinician") {
                 navigate("/clinician-dashboard");
             } else {
                 setError("Invalid role. Please contact support.");
