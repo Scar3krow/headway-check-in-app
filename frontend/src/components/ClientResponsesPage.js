@@ -103,10 +103,10 @@ const ClientResponsesPage = () => {
                 {
                     label: "Level of Distress",
                     data: totalScores,
-                    borderColor: "#353d5f",
+                    borderColor: "#587266",
                     backgroundColor: "rgba(53, 61, 95, 0.2)",
-                    pointBackgroundColor: "#353d5f",
-                    pointBorderColor: "#353d5f",
+                    pointBackgroundColor: "#587266",
+                    pointBorderColor: "#587266",
                     tension: 0.4,
                 },
             ],

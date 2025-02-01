@@ -278,7 +278,7 @@ def submit_answer():
 
 @main_bp.route('/session-details', methods=['GET'])
 def session_details():
-    """Fetch session details by session_id with proper role validation."""
+    """Fetch session details by session_id, with correct role-based access control."""
     decoded_token, error_response, status_code = validate_token()
     if error_response:
         return cors_enabled_response(error_response, status_code)
@@ -290,7 +290,7 @@ def session_details():
     user_role = decoded_token.get('role')
     user_id = decoded_token.get('id')
 
-    # 🔥 Fetch session responses
+    # 🔍 Fetch session responses
     responses_ref = db.collection('responses').where('session_id', '==', session_id).stream()
     responses = []
     
@@ -298,19 +298,27 @@ def session_details():
         response_data = r.to_dict()
         response_user_id = response_data.get('user_id')
 
-        # 🛑 **Ensure proper access control**
-        if user_role == "client" and response_user_id != user_id:
-            return cors_enabled_response({'message': 'Unauthorized access to session'}, 403)
+        # 🔥 **Access Control**
+        if user_role == "client":
+            # ✅ Clients can only access their own sessions
+            if response_user_id != user_id:
+                return cors_enabled_response({'message': 'Unauthorized access to session'}, 403)
 
-        if user_role == "clinician":
-            # 🔍 **Check if this user is assigned to the clinician**
+        elif user_role == "clinician":
+            # ✅ Clinicians can only see their **assigned clients**
             client_doc = db.collection('users').document(response_user_id).get()
             if client_doc.exists:
                 client_data = client_doc.to_dict()
-                if client_data.get('assigned_clinician_id') != user_id:
+                assigned_clinician = client_data.get('assigned_clinician_id')
+
+                if assigned_clinician != user_id:
                     return cors_enabled_response({'message': 'Unauthorized access to session'}, 403)
 
-        # ✅ Admins can access any session
+        elif user_role == "admin":
+            # ✅ Admins can access **all sessions**
+            pass  # No access restriction for admins
+
+        # ✅ If we pass all checks, add the response
         responses.append({
             'question_id': response_data.get('question_id'),
             'response_value': response_data.get('response_value'),
@@ -406,6 +414,34 @@ def search_clients():
         }
         for client in clients_ref
         if query in client.to_dict().get('first_name', '').lower() or query in client.to_dict().get('last_name', '').lower()
+    ]
+
+    return cors_enabled_response({'clients': matching_clients}, 200)
+
+
+@main_bp.route('/search-all-clients', methods=['GET'])
+def search_all_clients():
+    """Admin search for all clients."""
+    decoded_token, error_response, status_code = validate_token()
+    if error_response:
+        return cors_enabled_response(error_response, status_code)
+
+    if decoded_token.get('role') != "admin":
+        return cors_enabled_response({'message': 'Unauthorized'}, 403)
+
+    query = request.args.get('query', '').lower()
+    if not query:
+        return cors_enabled_response({'message': 'Query parameter is required'}, 400)
+
+    users_ref = db.collection('users').where('role', '==', 'client').stream()
+    matching_clients = [
+        {
+            'id': user.id,
+            'first_name': user.to_dict().get('first_name', ''),
+            'last_name': user.to_dict().get('last_name', '')
+        }
+        for user in users_ref
+        if query in user.to_dict().get('first_name', '').lower() or query in user.to_dict().get('last_name', '').lower()
     ]
 
     return cors_enabled_response({'clients': matching_clients}, 200)

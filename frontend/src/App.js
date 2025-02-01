@@ -71,7 +71,7 @@ function App() {
                     {/* Clinicians Only (Admins included) */}
                     <Route path="/clinician-dashboard" element={<ProtectedRoute element={<ClinicianDashboard />} roleRequired={["clinician", "admin"]} />} />
                     <Route path="/client-results/:userId" element={<ProtectedRoute element={<ClientResultsPage />} roleRequired={["clinician", "admin"]} />} />
-                    <Route path="/client-session-details" element={<ProtectedRoute element={<ClientSessionDetailsPage />} roleRequired={["clinician", "admin"]} />} />
+                    <Route path="/client-session-details/:sessionId" element={<ProtectedRoute element={<ClientSessionDetailsPage />} roleRequired={["clinician", "admin"]} />} />
 
                     {/* Admins Only */}
                     <Route path="/clinician-data" element={<ProtectedRoute element={<ClinicianDataPage />} roleRequired="admin" />} />
@@ -80,7 +80,7 @@ function App() {
                     <Route path="/remove-admin" element={<ProtectedRoute element={<RemoveAdminPage />} roleRequired="admin" />} />
 
                     {/* Mixed Roles (Accessible by Multiple Roles) */}
-                    <Route path="/forms" element={<ProtectedRoute element={<Form />} roleRequired={["client", "clinician"]} />} />
+                    <Route path="/forms" element={<ProtectedRoute element={<Form />} roleRequired={["client", "clinician", "admin"]} />} />
                     <Route path="/client/:userId" element={<ProtectedRoute element={<ClientDataPage />} roleRequired={["clinician", "admin"]} />} />
                     <Route path="/search-results" element={<ProtectedRoute element={<SearchResultsPage />} roleRequired={["clinician", "admin"]} />} />
                 </Routes>
