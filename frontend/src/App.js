@@ -66,12 +66,12 @@ function App() {
                     {/* Clients Only */}
                     <Route path="/client-dashboard" element={<ProtectedRoute element={<ClientDashboard />} roleRequired="client" />} />
                     <Route path="/client-responses" element={<ProtectedRoute element={<ClientResponsesPage />} roleRequired="client" />} />
-                    <Route path="/session-details/:sessionId" element={<ProtectedRoute element={<SessionDetailsPage />} roleRequired="client" />} />
+                    <Route path="/session-details/:sessionId" element={<ProtectedRoute element={<SessionDetailsPage />} roleRequired={["client", "clinician", "admin"]} />} />
 
                     {/* Clinicians Only (Admins included) */}
                     <Route path="/clinician-dashboard" element={<ProtectedRoute element={<ClinicianDashboard />} roleRequired={["clinician", "admin"]} />} />
                     <Route path="/client-results/:userId" element={<ProtectedRoute element={<ClientResultsPage />} roleRequired={["clinician", "admin"]} />} />
-                    <Route path="/client-session-details/:sessionId" element={<ProtectedRoute element={<ClientSessionDetailsPage />} roleRequired={["clinician", "admin"]} />} />
+                    <Route path="/client-session-details/:sessionId" element={<ProtectedRoute element={<ClientSessionDetailsPage />} roleRequired={["client", "clinician", "admin"]} />} />
 
                     {/* Admins Only */}
                     <Route path="/clinician-data" element={<ProtectedRoute element={<ClinicianDataPage />} roleRequired="admin" />} />
