@@ -20,7 +20,7 @@ const ClientDashboard = () => {
     useEffect(() => {
         const fetchQuestions = async () => {
             const token = localStorage.getItem("token");
-            const role = localStorage.getItem("role");
+            const role = localStorage.getItem("effective_role");
 
             if (!token || role !== "client") {
                 navigate("/login");
@@ -88,7 +88,7 @@ const ClientDashboard = () => {
 
     const handleLogout = () => {
         localStorage.removeItem("token");
-        localStorage.removeItem("role");
+        localStorage.removeItem("effective_role");
         navigate("/login");
     };
 
