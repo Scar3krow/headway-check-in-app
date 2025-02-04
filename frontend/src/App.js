@@ -7,7 +7,6 @@ import Logout from './components/Logout';
 import Navbar from './components/Navbar';
 import ClientDashboard from './components/ClientDashboard';
 import ClinicianDashboard from './components/ClinicianDashboard';
-import ClientDataPage from './components/ClientDataPage';
 import Form from './components/Form';
 import ClientResponsesPage from './components/ClientResponsesPage'; 
 import SearchResultsPage from "./components/SearchResultsPage";

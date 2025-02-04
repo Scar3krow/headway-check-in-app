@@ -36,6 +36,16 @@ const ClientGraph = ({ graphData, onDataPointClick }) => {
                 onDataPointClick(sessionIndex);
             }
         },
+        elements: {
+            point: {
+                radius: 6,       // ✅ Slightly larger point
+                hoverRadius: 10, // ✅ Enlarged hover area
+                hitRadius: 15,   // ✅ Expands tap area for mobile users
+            },
+            line: {
+                tension: 0.4,    // ✅ Smooth curve instead of sharp angles
+            },
+        },
         scales: {
             y: {
                 min: 0,

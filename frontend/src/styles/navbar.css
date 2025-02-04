@@ -56,9 +56,9 @@
     flex-direction: column;
     gap: 10px;
     position: absolute;
-    top: 60px;
-    left: 0;
-    width: 100vw; /* Full viewport width */
+    top: 100%;
+    right: 0;
+    width: 90vw; /* Full viewport width */
     background-color: #587266;
     padding: 15px;
     border-radius: 0 0 10px 10px;
@@ -82,5 +82,8 @@
 
     .nav-links.open {
         display: flex; /* Show dropdown when open */
+    }
+    .navbar-menu {
+        width: 100%; /* Ensure navbar dropdown fits screen */
     }
 }

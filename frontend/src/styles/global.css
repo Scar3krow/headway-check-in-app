@@ -1,4 +1,9 @@
 /* Global Styles */
+* {
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
 body {
     font-family: 'Roboto', sans-serif;
     margin: 0;
@@ -18,6 +23,10 @@ body {
     padding: 10px 20px;
     border: none;
     border-radius: 5px;
+    width: 100%; 
+    max-width: 250px; 
+    margin: 10px auto; 
+    display: block;
     font-weight: bold;
     font-size: 16px;
     cursor: pointer;
@@ -103,40 +112,6 @@ input:focus, select:focus {
     filter: brightness(1.1);
 }
 
-/* Navbar */
-.navbar {
-    background-color: #587266;
-    padding: 10px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-
-.navbar-title {
-    color: white;
-    font-size: 24px;
-    font-weight: bold;
-}
-
-.nav-button {
-    background-color: white;
-    color: #587266;
-    border: 2px solid #587266;
-    font-size: 16px;
-    font-weight: bold;
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.nav-button:hover {
-    background-color: #587266;
-    color: white;
-}
-
 /* Logout Page */
 .logout-container {
     display: flex;
@@ -166,7 +141,7 @@ input:focus, select:focus {
     }
 
     .dropdown-menu {
-        max-width: 100%;
+        max-width: 90%;
         font-size: 12px;
     }
 
@@ -178,6 +153,15 @@ input:focus, select:focus {
         font-size: 14px;
         padding: 8px 12px;
     }
+}
+
+.responses-title {
+    text-align: center;    
+    font-size: 1.8rem;     
+    font-weight: bold;     
+    color: #353d5f;        
+    margin-bottom: 20px;   
+    text-transform: uppercase; 
 }
 
 @media (max-width: 480px) {
