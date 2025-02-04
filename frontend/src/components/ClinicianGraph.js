@@ -96,9 +96,9 @@ const ClinicianGraph = ({ graphData, firstSessionScore, sessionIds, onSessionCli
         },
         elements: {
             point: {
-                radius: 6,       // ✅ Slightly larger point
-                hoverRadius: 10, // ✅ Enlarged hover area
-                hitRadius: 15,   // ✅ Expands tap area for mobile users
+                radius: 10,       // ✅ Slightly larger point
+                hoverRadius: 15, // ✅ Enlarged hover area
+                hitRadius: 25,   // ✅ Expands tap area for mobile users
             },
             line: {
                 tension: 0.4,    // ✅ Smooth curve instead of sharp angles

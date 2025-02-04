@@ -56,7 +56,7 @@
 
 /* Selected State */
 .likert-option input[type="radio"]:checked + .likert-label {
-    color: #587266; /* Green color when selected */
+    color: #4CAF50; /* Green color when selected */
 }
 
 /* Hover State */

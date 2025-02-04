@@ -58,7 +58,8 @@
     position: absolute;
     top: 100%;
     right: 0;
-    width: 90vw; /* Full viewport width */
+    width: 100vw;  /* Make it full viewport width */
+    left: 0;       /* Ensure it starts at the left edge */
     background-color: #587266;
     padding: 15px;
     border-radius: 0 0 10px 10px;

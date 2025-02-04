@@ -1,3 +1,8 @@
+html {
+    touch-action: manipulation; /* Prevent zooming on double-tap */
+    zoom: reset;
+}
+
 /* Global Styles */
 * {
     max-width: 100%;
@@ -26,9 +31,12 @@ body {
     width: 100%; 
     max-width: 250px; 
     margin: 10px auto; 
-    display: block;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     font-weight: bold;
     font-size: 16px;
+    gap: 20px;
     cursor: pointer;
     margin: 0 10px;
     color: white;
@@ -153,15 +161,6 @@ input:focus, select:focus {
         font-size: 14px;
         padding: 8px 12px;
     }
-}
-
-.responses-title {
-    text-align: center;    
-    font-size: 1.8rem;     
-    font-weight: bold;     
-    color: #353d5f;        
-    margin-bottom: 20px;   
-    text-transform: uppercase; 
 }
 
 @media (max-width: 480px) {
