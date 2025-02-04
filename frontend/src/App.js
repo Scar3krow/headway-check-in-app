@@ -81,7 +81,6 @@ function App() {
 
                     {/* Mixed Roles (Accessible by Multiple Roles) */}
                     <Route path="/forms" element={<ProtectedRoute element={<Form />} roleRequired={["client", "clinician", "admin"]} />} />
-                    <Route path="/client/:userId" element={<ProtectedRoute element={<ClientDataPage />} roleRequired={["clinician", "admin"]} />} />
                     <Route path="/search-results" element={<ProtectedRoute element={<SearchResultsPage />} roleRequired={["clinician", "admin"]} />} />
                 </Routes>
             </div>

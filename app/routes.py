@@ -696,19 +696,25 @@ def get_admins():
 @main_bp.route('/clinician-data', methods=['GET'])
 def get_clinician_data():
     """Fetch clinician data for analysis."""
-    clinician_id = request.args.get('clinician_id')
+    decoded_token, error_response, status_code = validate_token()
+    if error_response:
+        return cors_enabled_response(error_response, status_code)
 
+    # ✅ Ensure only admins can access
+    if decoded_token.get('role') != 'admin':
+        return cors_enabled_response({'message': 'Unauthorized: Only admins can access this data'}, 403)
+
+    clinician_id = request.args.get('clinician_id')
     if not clinician_id:
         return cors_enabled_response({'message': 'Clinician ID is required'}, 400)
 
     try:
+        # 🔹 Get all clients assigned to this clinician
         clients_ref = db.collection('users').where('assigned_clinician_id', '==', clinician_id).stream()
-        clients = [
-            {**client.to_dict(), 'user_id': client.id}
-            for client in clients_ref if client.to_dict().get('role') != 'clinician'
-        ]
+        clients = [{**client.to_dict(), 'user_id': client.id} for client in clients_ref]
 
         total_clients = len(clients)
+
         if total_clients == 0:
             return cors_enabled_response({
                 'total_clients': 0,
@@ -718,11 +724,80 @@ def get_clinician_data():
                 'percent_clinically_significant_last_6_months': 0,
             }, 200)
 
+        # 🛠 Helper Functions
+        def calculate_scores(client):
+            """Calculate first & latest session scores for a client."""
+            try:
+                responses = db.collection('responses').where('user_id', '==', client['user_id']).stream()
+                sessions = {}
+
+                for resp in responses:
+                    data = resp.to_dict()
+                    session_id = data.get('session_id')
+                    response_value = data.get('response_value')
+                    timestamp = data.get('timestamp')
+
+                    if isinstance(timestamp, datetime) and timestamp.tzinfo is None:
+                        timestamp = timestamp.replace(tzinfo=timezone.utc)
+
+                    if session_id and response_value is not None and timestamp:
+                        if session_id not in sessions:
+                            sessions[session_id] = {'responses': [], 'timestamp': timestamp}
+                        sessions[session_id]['responses'].append(response_value)
+
+                sorted_sessions = sorted(sessions.values(), key=lambda x: x['timestamp'])
+
+                if len(sorted_sessions) < 2:
+                    return None, None
+
+                first_score = sum(sorted_sessions[0]['responses']) - 10
+                latest_score = sum(sorted_sessions[-1]['responses']) - 10
+
+                return first_score, latest_score
+
+            except Exception as e:
+                print(f"Error calculating scores for {client['user_id']}: {e}")
+                return None, None
+
+        def is_clinically_significant(initial, latest):
+            return initial > 18 and (initial - latest) >= 12
+
+        def is_recent(timestamp):
+            six_months_ago = datetime.utcnow().replace(tzinfo=timezone.utc) - timedelta(days=182)
+            return timestamp >= six_months_ago
+
+        # 🔹 Compute Statistics
+        improved, clinically_significant = 0, 0
+        improved_last_6_months, clinically_significant_last_6_months = 0, 0
+
+        for client in clients:
+            initial, latest = calculate_scores(client)
+
+            if initial is not None and latest is not None:
+                if latest < initial:
+                    improved += 1
+                if is_clinically_significant(initial, latest):
+                    clinically_significant += 1
+
+                responses = db.collection('responses').where('user_id', '==', client['user_id']).stream()
+                has_recent_responses = any(is_recent(resp.to_dict()['timestamp']) for resp in responses)
+
+                if has_recent_responses:
+                    if latest < initial:
+                        improved_last_6_months += 1
+                    if is_clinically_significant(initial, latest):
+                        clinically_significant_last_6_months += 1
+
         return cors_enabled_response({
             'total_clients': total_clients,
+            'percent_improved': (improved / total_clients) * 100,
+            'percent_clinically_significant': (clinically_significant / total_clients) * 100,
+            'percent_improved_last_6_months': (improved_last_6_months / total_clients) * 100,
+            'percent_clinically_significant_last_6_months': (clinically_significant_last_6_months / total_clients) * 100,
         }, 200)
 
     except Exception as e:
+        print(f"Error in /clinician-data: {e}")
         return cors_enabled_response({'message': 'Failed to fetch clinician data.', 'error': str(e)}, 500)
     
 @main_bp.route('/logout-device', methods=['POST'])

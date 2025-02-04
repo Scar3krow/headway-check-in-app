@@ -113,19 +113,29 @@ const ClinicianDataPage = () => {
                             </tr>
                             <tr>
                                 <td>% Improved</td>
-                                <td>{stats.percent_improved.toFixed(2)}%</td>
+                                <td>
+                                    {stats.percent_improved !== undefined
+                                        ? stats.percent_improved.toFixed(2) + "%"
+                                        : "N/A"}
+                                </td>
                             </tr>
                             <tr>
                                 <td>% Clinically Significant</td>
-                                <td>{stats.percent_clinically_significant.toFixed(2)}%</td>
+                                <td>{stats.percent_clinically_significant !== undefined
+                                    ? stats.percent_clinically_significant.toFixed(2) + "%"
+                                    : "N/A"}</td>
                             </tr>
                             <tr>
                                 <td>% Improved (Last 6 Months)</td>
-                                <td>{stats.percent_improved_last_6_months.toFixed(2)}%</td>
+                                <td>{stats.percent_improved_last_6_months !== undefined
+                                    ? stats.percent_improved_last_6_months.toFixed(2) + "%"
+                                    : "N/A"}</td>
                             </tr>
                             <tr>
                                 <td>% Clinically Significant (Last 6 Months)</td>
-                                <td>{stats.percent_clinically_significant_last_6_months.toFixed(2)}%</td>
+                                <td>{stats.percent_clinically_significant_last_6_months !== undefined
+                                    ? stats.percent_clinically_significant_last_6_months.toFixed(2) + "%"
+                                    : "N/A"}</td>
                             </tr>
                         </tbody>
                     </table>
