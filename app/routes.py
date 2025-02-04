@@ -11,7 +11,7 @@ bcrypt = Bcrypt()
 main_bp = Blueprint('main', __name__)
 db = firestore.Client()
 
-FRONTEND_URL = "https://headway-check-in-app-1.onrender.com"
+FRONTEND_URL = "https://headway-check-in-app.onrender.com"
 
 # ✅ Ensure API calls are handled properly
 API_PREFIXES = ("/api/", "/register", "/login", "/questions", "/submit-responses", "/past-responses")
