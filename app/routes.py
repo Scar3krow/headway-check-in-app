@@ -848,7 +848,7 @@ def forgot_password():
     db.collection('password_resets').add({
         'email': email,
         'token': reset_token,
-        'expires_at': datetime.utcnow() + timedelta(minutes=30)
+        'expires_at': datetime.utcnow() + timedelta(minutes=0)
     })
 
     # 🔥 Send reset email (Implement actual email logic in send_reset_email)
