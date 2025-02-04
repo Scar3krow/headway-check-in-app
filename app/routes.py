@@ -312,7 +312,7 @@ def session_details():
     """Fetch session details by session_id, with correct role-based access control."""
     decoded_token, error_response, status_code = validate_token()
     if error_response:
-        return cors_enabled_response(error_response, status_code)
+        return error_response
 
     session_id = request.args.get('session_id')
     if not session_id:
