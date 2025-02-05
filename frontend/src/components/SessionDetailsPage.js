@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import "../styles/global.css"; // Consolidated global styles
-import "../styles/forms.css"; // Form layouts & messages
-import "../styles/table.css"; // Shared table styles
+import "../styles/forms.css";  // Form layouts & messages
+import "../styles/table.css";  // Shared table styles
 import "../styles/sessiondetails.css"; // Specific styles for session details
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
@@ -31,31 +31,34 @@ const SessionDetailsPage = () => {
         const fetchData = async () => {
             try {
                 const token = localStorage.getItem("token");
+                const deviceToken = localStorage.getItem("device_token"); // Added this line
                 const role = localStorage.getItem("role");
                 const userId = localStorage.getItem("user_id");
 
                 if (!token || !["client", "clinician", "admin"].includes(role)) {
-                    navigate("/unauthorized"); // 🔒 Redirect unauthorized users
+                    navigate("/unauthorized"); // Redirect unauthorized users
                     return;
                 }
 
-                // 🛠️ **API Calls: Fetch Session Details & Questions**
+                // API Calls: Fetch Session Details & Questions (with Device-Token in headers)
                 const [sessionResponse, questionsResponse] = await Promise.all([
                     fetch(`${API_URL}/session-details?session_id=${sessionId}`, {
                         headers: { 
                             "Content-Type": "application/json", 
-                            Authorization: `Bearer ${token}`
+                            Authorization: `Bearer ${token}`,
+                            "Device-Token": deviceToken,  // Include Device-Token header
                         },
                     }),
                     fetch(`${API_URL}/questions`, {
                         headers: { 
                             "Content-Type": "application/json", 
-                            Authorization: `Bearer ${token}`
+                            Authorization: `Bearer ${token}`,
+                            "Device-Token": deviceToken,  // Include Device-Token header
                         },
                     }),
                 ]);
 
-                // 🔥 Handle Unauthorized Responses
+                // Handle Unauthorized Responses
                 if (sessionResponse.status === 401 || questionsResponse.status === 401) {
                     throw new Error("Unauthorized access. You may not have permission.");
                 }
@@ -67,7 +70,7 @@ const SessionDetailsPage = () => {
                 const sessionData = await sessionResponse.json();
                 const questionsData = await questionsResponse.json();
 
-                // ✅ Ensure clients can ONLY see their own session data
+                // Ensure clients can ONLY see their own session data
                 if (role === "client") {
                     const isClientSession = sessionData.every(detail => detail.user_id === userId);
                     if (!isClientSession) {
@@ -75,19 +78,17 @@ const SessionDetailsPage = () => {
                     }
                 }
 
-                // 📝 Create a Question Map for Lookup
-                const questionMap = questionsData.reduce((acc, question) => {
+                // Create a Question Map for Lookup
+                const qMap = questionsData.reduce((acc, question) => {
                     acc[question.id] = question.text;
                     return acc;
                 }, {});
 
                 setSessionDetails(sessionData);
-                setQuestionMap(questionMap);
+                setQuestionMap(qMap);
             } catch (error) {
                 console.error("Error fetching session details:", error);
-                setErrorMessage(
-                    "An error occurred while fetching session details. Please try again."
-                );
+                setErrorMessage("An error occurred while fetching session details. Please try again.");
             }
         };
 

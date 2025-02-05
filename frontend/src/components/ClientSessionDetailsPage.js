@@ -96,7 +96,7 @@ const ClientSessionDetailsPage = () => {
     }, [sessionId, navigate]);
 
     const handleBackToClientResponses = () => {
-        navigate("/client-responses");
+        navigate(-1); // Navigate back to the previous page
     };
 
     return (
