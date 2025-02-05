@@ -22,7 +22,7 @@ def cors_enabled_response(data, status=200):
     """Wraps responses with proper CORS headers"""
     response = make_response(jsonify(data), status)
     response.headers["Access-Control-Allow-Origin"] = FRONTEND_URL
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, device-token"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
     return response
 
