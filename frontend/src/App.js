@@ -45,6 +45,29 @@ const ProtectedRoute = ({ element, roleRequired }) => {
     return element;
 };
 
+// **Component to Handle Storing & Redirecting Last Visited Page**
+const RouteHandler = () => {
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    // Store last visited page (except login/logout pages)
+    useEffect(() => {
+        if (!["/login", "/logout"].includes(location.pathname)) {
+            localStorage.setItem("lastVisitedPage", location.pathname);
+        }
+    }, [location]);
+
+    // Restore last visited page when reloading
+    useEffect(() => {
+        const lastPage = localStorage.getItem("lastVisitedPage");
+        if (lastPage && lastPage !== "/login") {
+            navigate(lastPage);
+        }
+    }, []);
+
+    return null;
+};
+
 function App() {
     return (
         <Router>
