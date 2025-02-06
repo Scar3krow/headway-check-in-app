@@ -132,8 +132,18 @@ select:focus {
     }
 
     .form-actions {
+        display: flex;
         flex-direction: column;
+        align-items: center; 
+        justify-content: center; 
         gap: 10px;
+        width: 100%;
+    }
+
+    .dashboard-button {
+        width: 80%; /* ✅ Adjust button width for better appearance */
+        max-width: 250px; /* Prevents overly large buttons */
+        text-align: center; /* Ensures button text is centered */
     }
 }
 

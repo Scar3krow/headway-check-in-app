@@ -71,6 +71,7 @@ const RouteHandler = () => {
 function App() {
     return (
         <Router>
+            <RouteHandler /> {/* Ensures last visited page logic runs */}
             <div>
                 <Navbar />
                 <Routes>
