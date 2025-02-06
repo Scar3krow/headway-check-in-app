@@ -5,12 +5,18 @@ from datetime import datetime
 
 def initialize_firestore():
     """
-    Initializes Firestore with:
-      - Users (including admin, clinician, and client documents)
-      - Admins and Clinicians collections for lookup
-      - A sessions subcollection will be created on first login (not pre-created)
-      - Default questions (10 total)
-      - A sample invite
+    Initializes Firestore with the required collections and default data.
+    
+    Collections created/updated:
+      - users: Contains all user documents.
+          * For every user: first_name, last_name, email, password, role, created_at.
+          * For clients: an assigned_clinician_id field is set.
+      - admins: For quick lookup of admin users.
+      - clinicians: For quick lookup of clinician users (with is_admin flag).
+      - questions: Contains 10 default questions.
+      - invites: Contains at least one sample invite.
+    
+    Note: The sessions subcollection for each user is created when a user logs in.
     """
     db = firestore.Client()
 
@@ -31,7 +37,6 @@ def initialize_firestore():
             "role": "admin",
             "assigned_clinician_id": None,  # Not applicable for admin
             "created_at": datetime.utcnow()
-            # "last_login": None  # Optionally add this field
         }
         users_ref.document(admin_id).set(default_admin)
         print(f"Default admin created: admin@example.com (ID: {admin_id})")
@@ -68,7 +73,7 @@ def initialize_firestore():
         clinicians_ref.document(clinician_id).set({
             "id": clinician_id,
             "name": f"{default_clinician['first_name']} {default_clinician['last_name']}",
-            "is_admin": False,
+            "is_admin": False,  # This clinician is not an admin
             "assigned_clinician_id": None
         })
         print("Clinician added to the 'clinicians' collection.")
@@ -88,15 +93,11 @@ def initialize_firestore():
             "role": "client",
             "assigned_clinician_id": clinician_id,  # Assign client to the default clinician
             "created_at": datetime.utcnow()
-            # "last_login": None  # Optionally add this field
         }
         users_ref.document(client_id).set(default_client)
         print(f"Default client created: client@example.com (ID: {client_id})")
     else:
         print("Default client(s) already exist.")
-
-    # Note: The "sessions" subcollection for each user is created when a login occurs.
-    # You do not need to pre-create it here, as Firestore creates a subcollection when the first document is added.
 
     # -----------------------------
     # QUESTIONS COLLECTION INITIALIZATION
