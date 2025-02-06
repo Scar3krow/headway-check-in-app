@@ -223,31 +223,35 @@ def get_questions():
 @main_bp.route('/submit-responses', methods=['POST'])
 def submit_responses():
     """Submit responses to Firestore."""
-    decoded_token, error_response, status_code = validate_token()
-    if error_response:
-        return cors_enabled_response(error_response, status_code)
+    try:
+        decoded_token, error_response, status_code = validate_token()
+        if error_response:
+            return cors_enabled_response(error_response, status_code)
 
-    data = request.get_json()
-    if not data or 'responses' not in data or not isinstance(data['responses'], list):
-        return cors_enabled_response({'message': '"responses" must be a list.'}, 400)
+        data = request.get_json()
+        if not data or 'responses' not in data or not isinstance(data['responses'], list):
+            return cors_enabled_response({'message': '"responses" must be a list.'}, 400)
 
-    session_id = str(uuid.uuid4())
-    user_id = decoded_token['id']
-    timestamp = firestore.SERVER_TIMESTAMP
+        session_id = str(uuid.uuid4())
+        user_id = decoded_token['id']
+        timestamp = firestore.SERVER_TIMESTAMP
 
-    for response in data['responses']:
-        if 'question_id' not in response or 'response_value' not in response:
-            return cors_enabled_response({'message': 'Each response must have "question_id" and "response_value".'}, 400)
+        for response in data['responses']:
+            if 'question_id' not in response or 'response_value' not in response:
+                return cors_enabled_response({'message': 'Each response must have "question_id" and "response_value".'}, 400)
 
-        db.collection('responses').add({
-            'user_id': user_id,
-            'session_id': session_id,
-            'question_id': response['question_id'],
-            'response_value': response['response_value'],
-            'timestamp': timestamp
-        })
+            db.collection('responses').add({
+                'user_id': user_id,
+                'session_id': session_id,
+                'question_id': response['question_id'],
+                'response_value': response['response_value'],
+                'timestamp': timestamp
+            })
 
-    return cors_enabled_response({'message': 'Responses submitted successfully', 'session_id': session_id}, 201)
+        return cors_enabled_response({'message': 'Responses submitted successfully', 'session_id': session_id}, 201)
+    except Exception as e:
+        print("Exception in /submit-responses:", e)
+        return cors_enabled_response({'message': 'Internal server error', 'error': str(e)}, 500)
 
 
 @main_bp.route('/past-responses', methods=['GET'])
