@@ -346,35 +346,32 @@ def session_details():
     user_role = decoded_token.get('role')
     user_id = decoded_token.get('id')
 
-    # 🔍 Fetch session responses
+    # Fetch all responses with the given session_id
     responses_ref = db.collection('responses').where('session_id', '==', session_id).stream()
     responses = []
-    
+    mismatched_responses = []  # For debugging purposes
+
     for r in responses_ref:
         response_data = r.to_dict()
         response_user_id = response_data.get('user_id')
 
-        # 🔥 **Access Control**
+        # For client users, ensure that every response's user_id matches the logged-in client.
         if user_role == "client":
-            # ✅ Clients can only access their own sessions
             if response_user_id != user_id:
-                return cors_enabled_response({'message': 'Unauthorized access to session'}, 403)
-
+                mismatched_responses.append({ "doc_id": r.id, "user_id": response_user_id })
+                print(f"Unauthorized access: In session {session_id}, expected user_id {user_id} but found {response_user_id} in document {r.id}")
+                return cors_enabled_response({'message': 'Unauthorized: You cannot view another user\'s session.'}, 403)
+        # For clinicians, check that the client is assigned to them.
         elif user_role == "clinician":
-            # ✅ Clinicians can only see their **assigned clients**
             client_doc = db.collection('users').document(response_user_id).get()
             if client_doc.exists:
                 client_data = client_doc.to_dict()
                 assigned_clinician = client_data.get('assigned_clinician_id')
-
                 if assigned_clinician != user_id:
+                    print(f"Unauthorized access: Clinician {user_id} is not assigned to client {response_user_id} (document {r.id}).")
                     return cors_enabled_response({'message': 'Unauthorized access to session'}, 403)
+        # Admins have unrestricted access
 
-        elif user_role == "admin":
-            # ✅ Admins can access **all sessions**
-            pass  # No access restriction for admins
-
-        # ✅ If we pass all checks, add the response
         responses.append({
             'question_id': response_data.get('question_id'),
             'response_value': response_data.get('response_value'),
