@@ -154,40 +154,57 @@ def login():
         email = data.get('email', '').strip().lower()
         password = data.get('password')
 
+        # Ensure email and password are provided.
+        if not email or not password:
+            return cors_enabled_response({'message': 'Email and password are required.'}, 400)
+
         users_ref = db.collection('users')
-        user_doc = next(iter(users_ref.where('email', '==', email).stream()), None)
+        user_docs = list(users_ref.where('email', '==', email).stream())
+        
+        if not user_docs:
+            # No user found for that email.
+            return cors_enabled_response({'message': 'Invalid credentials'}, 401)
+        
+        user_doc = user_docs[0]
+        user_data = user_doc.to_dict()
+        print("User data found for login:", user_data)  # Debug: Check document structure
 
-        if user_doc:
-            user_data = user_doc.to_dict()
-            # Check that the stored password exists and then verify it
-            if 'password' in user_data and bcrypt.check_password_hash(user_data['password'], password):
-                # Generate a unique device token for this login session
-                device_token = str(uuid.uuid4())
+        # Ensure the user document contains a password field.
+        if 'password' not in user_data:
+            raise Exception("User document is missing the 'password' field.")
 
-                # Create JWT payload with the device token
-                token_payload = {
-                    'id': user_doc.id,
-                    'role': user_data['role'],
-                    'exp': datetime.utcnow() + timedelta(hours=48),
-                    'device_token': device_token
-                }
-                access_token = jwt.encode(token_payload, SECRET_KEY, algorithm="HS256")
+        # Validate the password
+        if bcrypt.check_password_hash(user_data['password'], password):
+            # Generate a unique device token for this login session.
+            device_token = str(uuid.uuid4())
 
-                # Store this session in Firestore under `users/{user_id}/sessions`
-                user_sessions_ref = db.collection('users').document(user_doc.id).collection('sessions')
-                user_sessions_ref.document(device_token).set({
-                    'device_token': device_token,
-                    'created_at': datetime.utcnow(),
-                })
+            # Create JWT payload with the device token.
+            token_payload = {
+                'id': user_doc.id,
+                'role': user_data['role'],
+                'exp': datetime.utcnow() + timedelta(hours=48),
+                'device_token': device_token
+            }
+            access_token = jwt.encode(token_payload, SECRET_KEY, algorithm="HS256")
 
-                return cors_enabled_response({
-                    'access_token': access_token,
-                    'role': user_data['role'],
-                    'user_id': user_doc.id,
-                    'device_token': device_token
-                }, 200)
-        return cors_enabled_response({'message': 'Invalid credentials'}, 401)
+            # Store this session in Firestore under users/{user_id}/sessions.
+            user_sessions_ref = db.collection('users').document(user_doc.id).collection('sessions')
+            user_sessions_ref.document(device_token).set({
+                'device_token': device_token,
+                'created_at': datetime.utcnow(),
+            })
+
+            return cors_enabled_response({
+                'access_token': access_token,
+                'role': user_data['role'],
+                'user_id': user_doc.id,
+                'device_token': device_token
+            }, 200)
+        else:
+            return cors_enabled_response({'message': 'Invalid credentials'}, 401)
+
     except Exception as e:
+        # Log the exception for debugging.
         print("Exception in /login:", e)
         return cors_enabled_response({'message': 'Internal server error', 'error': str(e)}, 500)
 
