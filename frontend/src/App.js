@@ -60,10 +60,10 @@ const RouteHandler = () => {
     // Restore last visited page when reloading
     useEffect(() => {
         const lastPage = localStorage.getItem("lastVisitedPage");
-        if (lastPage && lastPage !== "/login") {
-            navigate(lastPage);
+        if (lastPage && window.location.pathname === "/") {
+            navigate(lastPage, { replace: true });
         }
-    }, []);
+    }, [navigate]);
 
     return null;
 };
