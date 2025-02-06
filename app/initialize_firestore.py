@@ -7,7 +7,7 @@ def initialize_firestore():
 
     # Users Initialization
     users_ref = db.collection('users')
-    existing_users = list(users_ref.stream())
+    """existing_users = list(users_ref.stream())
 
     if len(existing_users) == 0:
         print("Initializing users collection...")
@@ -35,7 +35,7 @@ def initialize_firestore():
             users_ref.add(user)
         print("Test users have been added to the users collection.")
     else:
-        print("Users collection already initialized.")
+        print("Users collection already initialized.")"""
 
     # Questions Initialization
     questions_ref = db.collection('questions')
@@ -69,7 +69,7 @@ def initialize_firestore():
 
     # Invites Initialization
     invites_ref = db.collection('invites')
-    existing_invites = list(invites_ref.stream())
+    """existing_invites = list(invites_ref.stream())
 
     if len(existing_invites) == 0:
         print("Initializing invites collection...")
@@ -91,7 +91,7 @@ def initialize_firestore():
         for invite in test_invites:
             print(f"Role: {invite['role']}, Invite Code: {invite['invite_code']}")
     else:
-        print("Invites collection already initialized.")
+        print("Invites collection already initialized.")"""
 
 if __name__ == "__main__":
     initialize_firestore()
