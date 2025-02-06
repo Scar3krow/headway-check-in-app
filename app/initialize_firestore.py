@@ -1,44 +1,92 @@
 from google.cloud import firestore
 from werkzeug.security import generate_password_hash
 import uuid
+from datetime import datetime
 
 def initialize_firestore():
     db = firestore.Client()
 
-    # Users Initialization
+    # ============================
+    # 🔹 USERS INITIALIZATION
+    # ============================
     users_ref = db.collection('users')
-    """existing_users = list(users_ref.stream())
+    
+    # Default Users (Admin, Clinician, Clients)
+    default_users = [
+        {
+            "email": "admin@example.com",
+            "password": generate_password_hash("AdminPass123"),
+            "role": "admin",
+            "name": "Admin User",
+            "created_at": datetime.utcnow(),
+            "last_login": None,
+        },
+        {
+            "email": "clinician@example.com",
+            "password": generate_password_hash("ClinicianPass123"),
+            "role": "clinician",
+            "name": "Dr. Clinician",
+            "assigned_clients": [],  # List of client IDs (to be assigned below)
+            "created_at": datetime.utcnow(),
+            "last_login": None,
+        },
+        {
+            "email": "client1@example.com",
+            "password": generate_password_hash("ClientPass123"),
+            "role": "client",
+            "name": "Client One",
+            "assigned_clinician_id": None,  # Will be assigned later
+            "past_sessions": [],
+            "created_at": datetime.utcnow(),
+            "last_login": None,
+        },
+        {
+            "email": "client2@example.com",
+            "password": generate_password_hash("ClientPass123"),
+            "role": "client",
+            "name": "Client Two",
+            "assigned_clinician_id": None,  # Will be assigned later
+            "past_sessions": [],
+            "created_at": datetime.utcnow(),
+            "last_login": None,
+        }
+    ]
 
-    if len(existing_users) == 0:
-        print("Initializing users collection...")
-        test_users = [
-            {
-                'username': "test_client",
-                'email': "test_client@example.com",
-                'password': generate_password_hash("password123"),  # Hash the password
-                'role': "client",
-            },
-            {
-                'username': "test_clinician",
-                'email': "test_clinician@example.com",
-                'password': generate_password_hash("password123"),  # Hash the password
-                'role': "clinician",
-            },
-            {
-                'username': "test_admin",
-                'email': "test_admin@example.com",
-                'password': generate_password_hash("admin123"),  # Hash the password
-                'role': "admin",
-            },
-        ]
-        for user in test_users:
-            users_ref.add(user)
-        print("Test users have been added to the users collection.")
-    else:
-        print("Users collection already initialized.")"""
+    print("Checking users collection...")
+    
+    for user_data in default_users:
+        user_query = users_ref.where("email", "==", user_data["email"]).stream()
+        user_doc = next(iter(user_query), None)
 
-    # Questions Initialization
-    questions_ref = db.collection('questions')
+        if user_doc is None:
+            user_id = str(uuid.uuid4())  # Generate unique ID
+            users_ref.document(user_id).set(user_data)
+            print(f"Added {user_data['role']}: {user_data['email']}")
+        else:
+            print(f"User {user_data['email']} already exists.")
+
+    # Assign clients to clinician
+    clinician_doc = users_ref.where("role", "==", "clinician").limit(1).stream()
+    clinician_doc = next(iter(clinician_doc), None)
+
+    if clinician_doc:
+        clinician_id = clinician_doc.id
+        client_docs = users_ref.where("role", "==", "client").stream()
+
+        assigned_clients = []
+        for client_doc in client_docs:
+            client_id = client_doc.id
+            assigned_clients.append(client_id)
+
+            users_ref.document(client_id).update({"assigned_clinician_id": clinician_id})
+            print(f"Assigned {client_doc.to_dict().get('name')} to Clinician {clinician_doc.to_dict().get('name')}")
+
+        users_ref.document(clinician_id).update({"assigned_clients": assigned_clients})
+
+    # ============================
+    # 🔹 QUESTIONS INITIALIZATION
+    # ============================
+    questions_ref = db.collection("questions")
     existing_questions = list(questions_ref.stream())
 
     default_questions = [
@@ -56,6 +104,7 @@ def initialize_firestore():
 
     if len(existing_questions) < len(default_questions):
         print("Updating questions collection...")
+        
         # Delete existing questions
         for question in existing_questions:
             questions_ref.document(question.id).delete()
@@ -63,35 +112,16 @@ def initialize_firestore():
         # Add the default questions
         for question in default_questions:
             questions_ref.add(question)
+        
         print("Questions collection has been updated.")
     else:
         print("Questions collection already contains all required questions.")
 
-    # Invites Initialization
-    invites_ref = db.collection('invites')
-    """existing_invites = list(invites_ref.stream())
-
-    if len(existing_invites) == 0:
-        print("Initializing invites collection...")
-        test_invites = [
-            {
-                'invite_code': str(uuid.uuid4()),
-                'role': "clinician",
-                'used': False,
-            },
-            {
-                'invite_code': str(uuid.uuid4()),
-                'role': "admin",
-                'used': False,
-            },
-        ]
-        for invite in test_invites:
-            invites_ref.add(invite)
-        print("Test invite codes have been added to the invites collection:")
-        for invite in test_invites:
-            print(f"Role: {invite['role']}, Invite Code: {invite['invite_code']}")
-    else:
-        print("Invites collection already initialized.")"""
+    # ============================
+    # 🔹 INVITES INITIALIZATION
+    # ============================
+    invites_ref = db.collection("invites")
+    print("Invites collection is ready.")
 
 if __name__ == "__main__":
     initialize_firestore()
