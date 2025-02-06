@@ -49,21 +49,30 @@ const ProtectedRoute = ({ element, roleRequired }) => {
 const RouteHandler = () => {
     const location = useLocation();
     const navigate = useNavigate();
+    const [initialized, setInitialized] = useState(false);
 
-    // Store last visited page (except login/logout pages)
     useEffect(() => {
         if (!["/login", "/logout"].includes(location.pathname)) {
+            console.log("🔹 Storing last visited page:", location.pathname);
             localStorage.setItem("lastVisitedPage", location.pathname);
         }
     }, [location]);
 
-    // Restore last visited page when reloading
     useEffect(() => {
-        const lastPage = localStorage.getItem("lastVisitedPage");
-        if (lastPage && window.location.pathname === "/") {
-            navigate(lastPage, { replace: true });
+        if (!initialized) {
+            const lastPage = localStorage.getItem("lastVisitedPage");
+            console.log("🔍 Retrieved last visited page from localStorage:", lastPage);
+            console.log("🔍 Current window location:", window.location.pathname);
+
+            // ✅ Ensure we only redirect if we are at root ("/") OR "/index"
+            if (lastPage && (window.location.pathname === "/" || window.location.pathname === "/index")) {
+                console.log("🚀 Redirecting to last visited page:", lastPage);
+                navigate(lastPage, { replace: true });
+            }
+
+            setInitialized(true); // Prevents infinite loops
         }
-    }, [navigate]);
+    }, [initialized, navigate]);
 
     return null;
 };
