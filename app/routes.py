@@ -127,27 +127,43 @@ def register():
         'password': hashed_password,
         'role': role,
         'assigned_clinician_id': assigned_clinician_id if role == 'client' else None,
+        'created_at': datetime.utcnow()
     })
 
     user_id = user_ref[1].id
 
-    # ✅ Ensure clinicians & admins are added to the clinicians collection
+    # Ensure clinicians & admins are added to the clinicians collection
     if role in ['clinician', 'admin']:
         db.collection('clinicians').document(user_id).set({
             'id': user_id,
             'name': f"{first_name} {last_name}",
-            'is_admin': True if role == 'admin' else False,  # Admins now have clinician access
+            'is_admin': True if role == 'admin' else False,
             'assigned_clinician_id': assigned_clinician_id if role == 'admin' else None,
         })
 
-    # ✅ Ensure admins are also in the admins collection
+    # Ensure admins are also in the admins collection
     if role == 'admin':
         db.collection('admins').document(user_id).set({
             'id': user_id,
             'name': f"{first_name} {last_name}"
         })
 
-    return cors_enabled_response({'message': 'User registered successfully', 'role': role}, 201)
+    # Check for an existing Authorization header (i.e. if a user is already logged in)
+    auth_header = request.headers.get('Authorization')
+    extra_data = {}
+    if auth_header:
+        # If an authorization header is present, instruct the frontend to log out the current user.
+        extra_data = {
+            'redirectTo': '/login',
+            'shouldLogout': True
+        }
+
+    # Return a response instructing the frontend to navigate to the login page.
+    return cors_enabled_response({
+        'message': 'User registered successfully',
+        'role': role,
+        **extra_data
+    }, 201)
 
 
 @main_bp.route('/login', methods=['POST'])
