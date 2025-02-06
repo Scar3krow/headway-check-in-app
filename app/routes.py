@@ -332,7 +332,7 @@ def submit_answer():
     return cors_enabled_response({'message': 'Answer submitted successfully'}, 201)
 
 
-"""@main_bp.route('/session-details', methods=['GET'])
+@main_bp.route('/session-details', methods=['GET'])
 def session_details():
     "Fetch session details by session_id, with correct role-based access control."
     decoded_token, error_response, status_code = validate_token()
@@ -381,11 +381,12 @@ def session_details():
     if not responses:
         return cors_enabled_response({'message': 'No responses found for this session'}, 404)
 
-    return cors_enabled_response(responses, 200)"""
+    return cors_enabled_response(responses, 200)
 
+""""
 @main_bp.route('/session-details', methods=['GET'])
 def session_details():
-    """Fetch session details by session_id, with correct role-based access control."""
+    "Fetch session details by session_id, with correct role-based access control."
     decoded_token, error_response, status_code = validate_token()
     if error_response:
         return error_response
@@ -410,7 +411,7 @@ def session_details():
         return cors_enabled_response({'message': 'No responses found for this session'}, 404)
 
     return cors_enabled_response(responses, 200)
-
+"""
 
 @main_bp.route('/search-users', methods=['GET'])
 def search_users():

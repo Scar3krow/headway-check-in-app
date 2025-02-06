@@ -44,14 +44,14 @@ const SessionDetailsPage = () => {
         const [sessionResponse, questionsResponse] = await Promise.all([
           fetch(`${API_URL}/session-details?session_id=${sessionId}`, {
             headers: { 
-              "Content-Type": "application/json",
+              "Content-Type": "application/json", 
               Authorization: `Bearer ${token}`,
               "Device-Token": deviceToken,
             },
           }),
           fetch(`${API_URL}/questions`, {
             headers: { 
-              "Content-Type": "application/json",
+              "Content-Type": "application/json", 
               Authorization: `Bearer ${token}`,
               "Device-Token": deviceToken,
             },
@@ -70,21 +70,15 @@ const SessionDetailsPage = () => {
         const sessionData = await sessionResponse.json();
         const questionsData = await questionsResponse.json();
 
-        // For clients: ensure every session detail's user_id matches the client's user_id
-        if (role === "client" && sessionData.length > 0) {
-          const allMatch = sessionData.every(detail => detail.user_id === userId);
-          if (!allMatch) {
-            throw new Error("Unauthorized: You cannot view another user's session.");
-          }
-        }
-
-        // Build a question map for lookup
+        // Removed extra check on each response's user_id.
+        // (We now simply assume that the data returned is correct.)
+        
+        // Build a question map for lookup.
         const qMap = questionsData.reduce((acc, question) => {
           acc[question.id] = question.text;
           return acc;
         }, {});
 
-        // Debugging logs
         console.log("Fetched session data:", sessionData);
         console.log("User ID:", userId);
 
@@ -130,7 +124,10 @@ const SessionDetailsPage = () => {
         <p className="no-data-message">No session details available.</p>
       )}
       <div className="form-actions">
-        <button onClick={handleBackToClientResults} className="dashboard-button secondary">
+        <button
+          onClick={handleBackToClientResults}
+          className="dashboard-button secondary"
+        >
           Back to Results
         </button>
       </div>
