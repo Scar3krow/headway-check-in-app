@@ -98,6 +98,7 @@ select:focus {
     align-items: center; 
     justify-content: center; 
     gap: 10px;
+    margin-bottom: 10px;
 }
 
 .form-buttons {
@@ -106,6 +107,7 @@ select:focus {
     align-items: center; 
     justify-content: center; 
     gap: 10px;
+    margin-bottom: 10px;
 }
 
 /* Success and Error Messages */

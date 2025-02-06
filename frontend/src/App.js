@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react'; 
 import { BrowserRouter as Router, Route, Routes, Navigate, useLocation, useNavigate } from 'react-router-dom'; 
 import Register from './components/Register'; 
 import Login from './components/Login';
@@ -51,28 +51,30 @@ const RouteHandler = () => {
     const navigate = useNavigate();
     const [initialized, setInitialized] = useState(false);
 
+    // 🔹 Store the last visited page (except login/logout pages)
     useEffect(() => {
         if (!["/login", "/logout"].includes(location.pathname)) {
             console.log("🔹 Storing last visited page:", location.pathname);
             localStorage.setItem("lastVisitedPage", location.pathname);
         }
-    }, [location]);
+    }, [location.pathname]); // ✅ Only store when pathname changes
 
+    // 🔍 Retrieve and navigate to last visited page (only on first render)
     useEffect(() => {
         if (!initialized) {
             const lastPage = localStorage.getItem("lastVisitedPage");
-            console.log("🔍 Retrieved last visited page from localStorage:", lastPage);
+            console.log("🔍 Retrieved last visited page:", lastPage);
             console.log("🔍 Current window location:", window.location.pathname);
 
-            // ✅ Ensure we only redirect if we are at root ("/") OR "/index"
+            // ✅ Only redirect if at root ("/") or "/index"
             if (lastPage && (window.location.pathname === "/" || window.location.pathname === "/index")) {
                 console.log("🚀 Redirecting to last visited page:", lastPage);
                 navigate(lastPage, { replace: true });
             }
 
-            setInitialized(true); // Prevents infinite loops
+            setInitialized(true); // ✅ Prevents infinite loops
         }
-    }, [initialized, navigate]);
+    }, [initialized, navigate]); // ✅ Dependencies to avoid infinite rerenders
 
     return null;
 };
@@ -80,7 +82,7 @@ const RouteHandler = () => {
 function App() {
     return (
         <Router>
-            <RouteHandler /> {/* Ensures last visited page logic runs */}
+            <RouteHandler /> {/* ✅ Ensures last visited page logic runs */}
             <div>
                 <Navbar />
                 <Routes>
