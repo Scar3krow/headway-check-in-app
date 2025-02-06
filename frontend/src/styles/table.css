@@ -32,7 +32,7 @@
 .question-text {
     font-size: 18px;
     font-weight: bold;
-    color: #333;
+    color: #587266;
     text-align: left;
 }
 
@@ -49,14 +49,9 @@
     cursor: pointer;
     font-size: 16px;
     font-weight: bold;
-    color: #555;
+    color: #252525;
     transition: color 0.3s ease;
     display: inline-block;
-}
-
-/* Selected State */
-.likert-option input[type="radio"]:checked + .likert-label {
-    color: #4CAF50; /* Green color when selected */
 }
 
 /* Hover State */

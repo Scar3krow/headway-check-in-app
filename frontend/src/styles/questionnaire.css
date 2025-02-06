@@ -20,9 +20,6 @@
 
 /* Improve Highlighting of Selected Answer */
 .likert-option input[type="radio"]:checked + .likert-label {
-    background-color: #4CAF50; /* Brighter Green */
-    color: white;
+    color: #47745f;
     font-weight: bold;
-    padding: 5px 10px;
-    border-radius: 5px;
 }
