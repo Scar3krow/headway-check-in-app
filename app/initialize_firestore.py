@@ -4,88 +4,103 @@ import uuid
 from datetime import datetime
 
 def initialize_firestore():
+    """
+    Initializes Firestore with:
+      - Users (including admin, clinician, and client documents)
+      - Admins and Clinicians collections for lookup
+      - A sessions subcollection will be created on first login (not pre-created)
+      - Default questions (10 total)
+      - A sample invite
+    """
     db = firestore.Client()
 
-    # ============================
-    # 🔹 USERS INITIALIZATION
-    # ============================
-    users_ref = db.collection('users')
-    
-    # Default Users (Admin, Clinician, Clients)
-    default_users = [
-        {
+    # -----------------------------
+    # USERS COLLECTION INITIALIZATION
+    # -----------------------------
+    users_ref = db.collection("users")
+
+    # --- Create Default Admin if none exist ---
+    admin_query = list(users_ref.where("role", "==", "admin").stream())
+    if not admin_query:
+        admin_id = str(uuid.uuid4())
+        default_admin = {
+            "first_name": "Admin",
+            "last_name": "User",
             "email": "admin@example.com",
             "password": generate_password_hash("AdminPass123"),
             "role": "admin",
-            "name": "Admin User",
-            "created_at": datetime.utcnow(),
-            "last_login": None,
-        },
-        {
+            "assigned_clinician_id": None,  # Not applicable for admin
+            "created_at": datetime.utcnow()
+            # "last_login": None  # Optionally add this field
+        }
+        users_ref.document(admin_id).set(default_admin)
+        print(f"Default admin created: admin@example.com (ID: {admin_id})")
+
+        # Add to the 'admins' collection
+        admins_ref = db.collection("admins")
+        admins_ref.document(admin_id).set({
+            "id": admin_id,
+            "name": f"{default_admin['first_name']} {default_admin['last_name']}"
+        })
+        print("Admin added to the 'admins' collection.")
+    else:
+        admin_id = list(admin_query)[0].id
+        print("Default admin already exists.")
+
+    # --- Create Default Clinician if none exist ---
+    clinician_query = list(users_ref.where("role", "==", "clinician").stream())
+    if not clinician_query:
+        clinician_id = str(uuid.uuid4())
+        default_clinician = {
+            "first_name": "Clinician",
+            "last_name": "User",
             "email": "clinician@example.com",
             "password": generate_password_hash("ClinicianPass123"),
             "role": "clinician",
-            "name": "Dr. Clinician",
-            "assigned_clients": [],  # List of client IDs (to be assigned below)
-            "created_at": datetime.utcnow(),
-            "last_login": None,
-        },
-        {
-            "email": "client1@example.com",
-            "password": generate_password_hash("ClientPass123"),
-            "role": "client",
-            "name": "Client One",
-            "assigned_clinician_id": None,  # Will be assigned later
-            "past_sessions": [],
-            "created_at": datetime.utcnow(),
-            "last_login": None,
-        },
-        {
-            "email": "client2@example.com",
-            "password": generate_password_hash("ClientPass123"),
-            "role": "client",
-            "name": "Client Two",
-            "assigned_clinician_id": None,  # Will be assigned later
-            "past_sessions": [],
-            "created_at": datetime.utcnow(),
-            "last_login": None,
+            "assigned_clinician_id": None,  # Clinicians are not assigned to another clinician
+            "created_at": datetime.utcnow()
         }
-    ]
+        users_ref.document(clinician_id).set(default_clinician)
+        print(f"Default clinician created: clinician@example.com (ID: {clinician_id})")
 
-    print("Checking users collection...")
-    
-    for user_data in default_users:
-        user_query = users_ref.where("email", "==", user_data["email"]).stream()
-        user_doc = next(iter(user_query), None)
+        # Add to the 'clinicians' collection
+        clinicians_ref = db.collection("clinicians")
+        clinicians_ref.document(clinician_id).set({
+            "id": clinician_id,
+            "name": f"{default_clinician['first_name']} {default_clinician['last_name']}",
+            "is_admin": False,
+            "assigned_clinician_id": None
+        })
+        print("Clinician added to the 'clinicians' collection.")
+    else:
+        clinician_id = list(clinician_query)[0].id
+        print("Default clinician already exists.")
 
-        if user_doc is None:
-            user_id = str(uuid.uuid4())  # Generate unique ID
-            users_ref.document(user_id).set(user_data)
-            print(f"Added {user_data['role']}: {user_data['email']}")
-        else:
-            print(f"User {user_data['email']} already exists.")
+    # --- Create Default Client if none exist ---
+    client_query = list(users_ref.where("role", "==", "client").stream())
+    if not client_query:
+        client_id = str(uuid.uuid4())
+        default_client = {
+            "first_name": "Client",
+            "last_name": "User",
+            "email": "client@example.com",
+            "password": generate_password_hash("ClientPass123"),
+            "role": "client",
+            "assigned_clinician_id": clinician_id,  # Assign client to the default clinician
+            "created_at": datetime.utcnow()
+            # "last_login": None  # Optionally add this field
+        }
+        users_ref.document(client_id).set(default_client)
+        print(f"Default client created: client@example.com (ID: {client_id})")
+    else:
+        print("Default client(s) already exist.")
 
-    # Assign clients to clinician
-    clinician_doc = users_ref.where("role", "==", "clinician").limit(1).stream()
-    clinician_doc = next(iter(clinician_doc), None)
+    # Note: The "sessions" subcollection for each user is created when a login occurs.
+    # You do not need to pre-create it here, as Firestore creates a subcollection when the first document is added.
 
-    if clinician_doc:
-        clinician_id = clinician_doc.id
-        client_docs = users_ref.where("role", "==", "client").stream()
-
-        assigned_clients = []
-        for client_doc in client_docs:
-            client_id = client_doc.id
-            assigned_clients.append(client_id)
-
-            users_ref.document(client_id).update({"assigned_clinician_id": clinician_id})
-            print(f"Assigned {client_doc.to_dict().get('name')} to Clinician {clinician_doc.to_dict().get('name')}")
-
-        users_ref.document(clinician_id).update({"assigned_clients": assigned_clients})
-
-    # ============================
-    # 🔹 QUESTIONS INITIALIZATION
-    # ============================
+    # -----------------------------
+    # QUESTIONS COLLECTION INITIALIZATION
+    # -----------------------------
     questions_ref = db.collection("questions")
     existing_questions = list(questions_ref.stream())
 
@@ -104,24 +119,35 @@ def initialize_firestore():
 
     if len(existing_questions) < len(default_questions):
         print("Updating questions collection...")
-        
         # Delete existing questions
         for question in existing_questions:
             questions_ref.document(question.id).delete()
-
-        # Add the default questions
+        # Add default questions
         for question in default_questions:
             questions_ref.add(question)
-        
         print("Questions collection has been updated.")
     else:
-        print("Questions collection already contains all required questions.")
+        print("Questions collection already initialized.")
 
-    # ============================
-    # 🔹 INVITES INITIALIZATION
-    # ============================
+    # -----------------------------
+    # INVITES COLLECTION INITIALIZATION
+    # -----------------------------
     invites_ref = db.collection("invites")
-    print("Invites collection is ready.")
+    existing_invites = list(invites_ref.stream())
+    if not existing_invites:
+        print("Initializing invites collection...")
+        sample_invite = {
+            "invite_code": str(uuid.uuid4()),
+            "role": "clinician",  # Example: an invite for a clinician
+            "used": False,
+            "created_at": datetime.utcnow()
+        }
+        invites_ref.document(sample_invite["invite_code"]).set(sample_invite)
+        print("Sample invite created.")
+    else:
+        print("Invites collection already initialized.")
+
+    print("Firestore initialization completed successfully!")
 
 if __name__ == "__main__":
     initialize_firestore()
