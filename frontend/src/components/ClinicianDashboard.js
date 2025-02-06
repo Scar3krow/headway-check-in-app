@@ -144,7 +144,7 @@ const ClinicianDashboard = () => {
                                     onClick={handleSwitchToAdmin}
                                     className="dashboard-button info"
                                 >
-                                    Switch to Admin View
+                                    Admin View
                                 </button>
                             )}
                         </div>

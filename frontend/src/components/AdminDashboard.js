@@ -111,7 +111,7 @@ const AdminDashboard = () => {
                             onClick={() => navigate("/clinician-dashboard")}
                             className="dashboard-button primary"
                         >
-                            Go to Clinician Dashboard
+                            Clinician View
                         </button>
                     </>
                 ) : (

@@ -11,6 +11,22 @@
     margin-bottom: 20px;
 }
 
+.admin-dashboard-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px; /* Ensures consistent spacing between buttons */
+    margin-top: 20px;
+}
+
+.client-dashboard-buttons {
+    display: flex;
+    flex-direction: column; /* Ensure buttons are stacked vertically */
+    align-items: center; /* Center-align the buttons */
+    gap: 15px; /* Adds space between each button */
+    margin-bottom: 20px; /* Extra margin below buttons */
+}
+
 /* Search Results List */
 .search-results-list {
     list-style: none;
