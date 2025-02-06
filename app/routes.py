@@ -58,9 +58,13 @@ def validate_token():
 
 @main_bp.route("/", defaults={"path": ""})
 @main_bp.route("/<path:path>")
-def redirect_to_frontend(path):
-    """Redirects all frontend requests to the React app hosted separately."""
-    return redirect(f"{FRONTEND_URL}/{path}")
+def catch_all(path):
+    """Redirects API calls to Flask and everything else to the frontend."""
+    if path.startswith("api/") or path in ["login", "register", "logout"]:
+        return cors_enabled_response({"message": "Invalid API request"}, 404)
+
+    # Redirect all other routes to React
+    return redirect(FRONTEND_URL)
 
 
 @main_bp.route('/register', methods=['POST'])

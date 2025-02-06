@@ -4,7 +4,7 @@
     padding: 0;
     margin: 10px 0;
     width: 100%;
-    max-width: 400px;
+    max-width: 600px;
     background-color: white;
     border: 1px solid #ddd;
     border-radius: 5px;
@@ -38,7 +38,7 @@
 /* Search Input */
 .search-input {
     width: 100%;
-    max-width: 400px;
+    max-width: 600px;
     padding: 8px 12px;
     border: 1px solid #ccc;
     border-radius: 5px;
