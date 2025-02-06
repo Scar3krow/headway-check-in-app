@@ -7,6 +7,7 @@ from google.cloud import firestore
 from google.oauth2 import service_account
 import firebase_admin
 from firebase_admin import credentials
+from .initialize_firestore import initialize_firestore
 
 bcrypt = Bcrypt()
 
@@ -47,6 +48,9 @@ def create_app():
         allow_headers=["Authorization", "Content-Type", "device-token"],
         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
     bcrypt.init_app(app)
+
+    # ✅ Initialize Firestore **before** running the app
+    initialize_firestore()
 
     # Register routes
     from .routes import main_bp
