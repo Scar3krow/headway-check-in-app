@@ -30,7 +30,7 @@ def validate_token():
     """Validate JWT token and ensure session exists in Firestore."""
     auth_header = request.headers.get('Authorization')
     if not auth_header or not auth_header.startswith('Bearer '):
-        return None, cors_enabled_response({'message': 'Missing or invalid token'}, 401)
+        return None, cors_enabled_response({'message': 'Missing or invalid token'}, 401), 401
 
     token = auth_header.split(' ')[1]
     
@@ -40,20 +40,20 @@ def validate_token():
         device_token = decoded_token.get('device_token')  # 🔥 Extract device token
 
         if not user_id or not device_token:
-            return None, cors_enabled_response({'message': 'Invalid token payload'}, 401)
+            return None, cors_enabled_response({'message': 'Invalid token payload'}, 401), 401
 
         # 🔥 Check if this device_token exists in Firestore under user's sessions
         session_ref = db.collection('users').document(user_id).collection('sessions').document(device_token).get()
 
         if not session_ref.exists:
-            return None, cors_enabled_response({'message': 'Session expired or revoked'}, 401)
+            return None, cors_enabled_response({'message': 'Session expired or revoked'}, 401), 401
 
         return decoded_token, None, None
 
     except jwt.ExpiredSignatureError:
-        return None, cors_enabled_response({'message': 'Token expired'}, 401)
+        return None, cors_enabled_response({'message': 'Token expired'}, 401), 401
     except jwt.InvalidTokenError:
-        return None, cors_enabled_response({'message': 'Invalid token'}, 401)
+        return None, cors_enabled_response({'message': 'Invalid token'}, 401), 401
 
 
 @main_bp.route("/", defaults={"path": ""})

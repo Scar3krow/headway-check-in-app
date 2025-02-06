@@ -51,22 +51,19 @@ const RouteHandler = () => {
     const navigate = useNavigate();
     const [initialized, setInitialized] = useState(false);
 
-    // 🔹 Store the last visited page (except login/logout pages)
     useEffect(() => {
         if (!["/login", "/logout"].includes(location.pathname)) {
             console.log("🔹 Storing last visited page:", location.pathname);
             localStorage.setItem("lastVisitedPage", location.pathname);
         }
-    }, [location.pathname]); // ✅ Only store when pathname changes
+    }, [location.pathname]); 
 
-    // 🔍 Retrieve and navigate to last visited page (only on first render)
     useEffect(() => {
         if (!initialized) {
             const lastPage = localStorage.getItem("lastVisitedPage");
             console.log("🔍 Retrieved last visited page:", lastPage);
             console.log("🔍 Current window location:", window.location.pathname);
 
-            // ✅ Only redirect if at root ("/") or "/index"
             if (lastPage && (window.location.pathname === "/" || window.location.pathname === "/index")) {
                 console.log("🚀 Redirecting to last visited page:", lastPage);
                 navigate(lastPage, { replace: true });
