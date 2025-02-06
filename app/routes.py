@@ -149,43 +149,47 @@ def register():
 @main_bp.route('/login', methods=['POST'])
 def login():
     """Login and issue a JWT tied to a specific device."""
-    data = request.get_json()
-    email = data.get('email', '').strip().lower()
-    password = data.get('password')
+    try:
+        data = request.get_json()
+        email = data.get('email', '').strip().lower()
+        password = data.get('password')
 
-    users_ref = db.collection('users')
-    user_doc = next(iter(users_ref.where('email', '==', email).stream()), None)
+        users_ref = db.collection('users')
+        user_doc = next(iter(users_ref.where('email', '==', email).stream()), None)
 
-    if user_doc:
-        user_data = user_doc.to_dict()
-        if bcrypt.check_password_hash(user_data['password'], password):
-            # 🔥 Generate a **unique** device token per login session
-            device_token = str(uuid.uuid4())
+        if user_doc:
+            user_data = user_doc.to_dict()
+            # Check that the stored password exists and then verify it
+            if 'password' in user_data and bcrypt.check_password_hash(user_data['password'], password):
+                # Generate a unique device token for this login session
+                device_token = str(uuid.uuid4())
 
-            # 🔐 Create JWT payload with device token
-            token_payload = {
-                'id': user_doc.id,
-                'role': user_data['role'],
-                'exp': datetime.utcnow() + timedelta(hours=48),
-                'device_token': device_token  # ✅ Include device token
-            }
-            access_token = jwt.encode(token_payload, SECRET_KEY, algorithm="HS256")
+                # Create JWT payload with the device token
+                token_payload = {
+                    'id': user_doc.id,
+                    'role': user_data['role'],
+                    'exp': datetime.utcnow() + timedelta(hours=48),
+                    'device_token': device_token
+                }
+                access_token = jwt.encode(token_payload, SECRET_KEY, algorithm="HS256")
 
-            # ✅ Store this session in Firestore under `users/{user_id}/sessions`
-            user_sessions_ref = db.collection('users').document(user_doc.id).collection('sessions')
-            user_sessions_ref.document(device_token).set({
-                'device_token': device_token,
-                'created_at': datetime.utcnow(),
-            })
+                # Store this session in Firestore under `users/{user_id}/sessions`
+                user_sessions_ref = db.collection('users').document(user_doc.id).collection('sessions')
+                user_sessions_ref.document(device_token).set({
+                    'device_token': device_token,
+                    'created_at': datetime.utcnow(),
+                })
 
-            return cors_enabled_response({
-                'access_token': access_token,
-                'role': user_data['role'],
-                'user_id': user_doc.id,
-                'device_token': device_token  # ✅ Send this to the frontend
-            }, 200)
-
-    return cors_enabled_response({'message': 'Invalid credentials'}, 401)
+                return cors_enabled_response({
+                    'access_token': access_token,
+                    'role': user_data['role'],
+                    'user_id': user_doc.id,
+                    'device_token': device_token
+                }, 200)
+        return cors_enabled_response({'message': 'Invalid credentials'}, 401)
+    except Exception as e:
+        print("Exception in /login:", e)
+        return cors_enabled_response({'message': 'Internal server error', 'error': str(e)}, 500)
 
 
 @main_bp.route('/questions', methods=['GET'])
