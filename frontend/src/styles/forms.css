@@ -187,3 +187,25 @@ select:focus {
     font-weight: bold;
 }
 
+/* ✅ Password Requirements */
+.password-requirements {
+    margin-top: 8px;
+    font-size: 14px;
+}
+
+.password-requirements p {
+    margin: 3px 0;
+    font-weight: bold;
+    transition: color 0.3s ease-in-out;
+}
+
+/* ❌ Invalid (Red) */
+.password-requirements .invalid {
+    color: #8D5F54;
+}
+
+/* ✅ Valid (Green) */
+.password-requirements .valid {
+    color: #D1DDCB;
+}
+

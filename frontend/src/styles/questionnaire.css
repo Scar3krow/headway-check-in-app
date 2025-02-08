@@ -80,42 +80,76 @@
         align-items: center;
         padding: 20px;
         box-sizing: border-box;
+        background-color: #F1EEE9;
     }
 
-    /* 🔥 **Only Show Active Question** */
+    /* ✅ Hide all questions except active one */
     .question-row {
-        display: none; /* Hide all questions */
+        display: none;
         width: 100%;
         flex-direction: column;
         align-items: center;
         text-align: center;
     }
 
-    /* ✅ Show Only the Current Question */
     .question-row.active {
         display: flex;
     }
 
-    /* ✅ Make Buttons Stick to Bottom */
-    .questionnaire-nav {
-        position: fixed;
-        bottom: 10px;
-        left: 0;
-        width: 100%;
+    /* ✅ Center the Question */
+    .question-text {
+        font-size: 1.4rem;
+        font-weight: bold;
+        color: #587266;
+        text-align: center;
+        max-width: 90%;
+        margin-bottom: 20px;
+    }
+
+    /* ✅ Answer Choices as Buttons */
+    .response-options {
         display: flex;
-        justify-content: space-between;
+        flex-direction: column;
+        gap: 15px;
+        width: 90%;
+        max-width: 350px;
+    }
+
+    .response-btn {
         padding: 15px;
-        background-color: white;
-        border-top: 1px solid #ddd;
+        border: none;
+        border-radius: 10px;
+        background: #353d5f; /* Match Dashboard Button Color */
+        color: white;
+        font-size: 1.2rem;
+        cursor: pointer;
+        transition: 0.3s;
+        text-align: center;
+        width: 100%;
+    }
+
+    /* ✅ Highlight selected answer */
+    .response-btn.selected {
+        background: #587266;
+        font-weight: bold;
     }
 
     /* ✅ Navigation Buttons */
+    .navigation-buttons {
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+        max-width: 350px;
+        margin-top: 20px;
+    }
+
     .nav-btn {
-        font-size: 1.5rem;
+        font-size: 2rem;
         padding: 10px;
         border: none;
         background: transparent;
         cursor: pointer;
+        color: #353d5f;
         transition: 0.3s;
     }
 
@@ -125,13 +159,16 @@
 
     /* ✅ Submit Button */
     .submit-btn {
-        padding: 12px;
-        font-size: 1rem;
+        padding: 15px;
+        font-size: 1.2rem;
         background: #587266;
         color: white;
         border: none;
-        border-radius: 5px;
+        border-radius: 10px;
         cursor: pointer;
+        margin-top: 20px;
+        width: 100%;
+        max-width: 350px;
     }
 
     .submit-btn:disabled {

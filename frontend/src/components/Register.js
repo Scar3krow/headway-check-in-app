@@ -16,6 +16,10 @@ const Register = () => {
     role: "client", // Default role
     assignedClinicianId: "",
   });
+  const [passwordValidations, setPasswordValidations] = useState({
+    minLength: false,
+    hasNumberOrSpecial: false,
+  });
   const [error, setError] = useState("");
   const [clinicians, setClinicians] = useState([]);
   const navigate = useNavigate();
@@ -44,8 +48,14 @@ const Register = () => {
     }
   };
 
-  const validatePassword = (password) => {
-    return password.length >= 6 && /[\d@$!%*?&]/.test(password);
+  const handlePasswordChange = (e) => {
+    const newPassword = e.target.value;
+    setFormData({ ...formData, password: newPassword });
+
+    setPasswordValidations({
+      minLength: newPassword.length >= 6,
+      hasNumberOrSpecial: /[\d@$!%*?&]/.test(newPassword),
+    });
   };
 
   const handleChange = (e) => {
@@ -84,7 +94,7 @@ const Register = () => {
       return;
     }
 
-    if (!validatePassword(formData.password)) {
+    if (!passwordValidations.minLength || !passwordValidations.hasNumberOrSpecial) {
       setError("Password must be at least 6 characters long and contain a digit or special character.");
       return;
     }
@@ -183,10 +193,20 @@ const Register = () => {
             name="password"
             placeholder="Enter password"
             value={formData.password}
-            onChange={handleChange}
+            onChange={handlePasswordChange}
             required
             className="form-input"
           />
+          {formData.password && (
+            <div className="password-requirements">
+              <p className={passwordValidations.minLength ? "valid" : "invalid"}>
+                ✅ At least 6 characters
+              </p>
+              <p className={passwordValidations.hasNumberOrSpecial ? "valid" : "invalid"}>
+                ✅ Contains a number or special character (@, $, !, %, *, ?, &)
+              </p>
+            </div>
+          )}
         </div>
         <div className="form-group">
           <label>Confirm Password:</label>

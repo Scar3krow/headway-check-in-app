@@ -1,3 +1,8 @@
+html {
+    touch-action: manipulation; /* Prevent zooming on double-tap */
+    zoom: reset;
+}
+
 /* Centered loading container */
 .loading-container {
     display: flex;
