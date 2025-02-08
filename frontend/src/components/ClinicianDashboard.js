@@ -5,6 +5,7 @@ import "../styles/dashboard.css"; // Dashboard-specific styles
 import "../styles/buttons.css"; // Button-specific styles
 import "../styles/searchdropdown.css"; // Specific for search dropdown
 import { API_URL } from "../config";
+import LoadingMessage from "../components/LoadingMessage";
 
 const ClinicianDashboard = () => {
     const [searchQuery, setSearchQuery] = useState("");
@@ -18,6 +19,8 @@ const ClinicianDashboard = () => {
         setIsAdmin(role === "admin");
     }, []);
 
+    const [isLoading, setIsLoading] = useState(false);
+
     const handleSearchChange = async (e) => {
         const query = e.target.value.trim().toLowerCase();
         setSearchQuery(query);
@@ -26,6 +29,8 @@ const ClinicianDashboard = () => {
             setClientOptions([]);
             return;
         }
+
+        setIsLoading(true);
 
         try {
             const token = localStorage.getItem("token");
@@ -49,6 +54,8 @@ const ClinicianDashboard = () => {
             setClientOptions(data.clients);
         } catch (error) {
             console.error("Error fetching client options:", error);
+        } finally {
+            setIsLoading(false); // Hide loading indicator
         }
     };
 
@@ -108,6 +115,7 @@ const ClinicianDashboard = () => {
                         placeholder="Search for a client by name..."
                         className="search-input styled-textbox"
                     />
+                    {isLoading ? <LoadingMessage text="Searching..." /> : null} {/* set loading message */}
                     {clientOptions.length > 0 ? (
                         <ul className="dropdown-menu">
                             {clientOptions.map((client) => (

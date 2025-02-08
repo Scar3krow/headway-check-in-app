@@ -12,6 +12,7 @@ const SessionDetailsPage = () => {
   const [questionMap, setQuestionMap] = useState({});
   const [errorMessage, setErrorMessage] = useState("");
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(true);
 
   const responseTextMap = {
     1: "Not at all",
@@ -86,6 +87,8 @@ const SessionDetailsPage = () => {
       } catch (error) {
         console.error("Error fetching session details:", error);
         setErrorMessage("An error occurred while fetching session details. Please try again.");
+      } finally {
+          setIsLoading(false);
       }
     };
 
@@ -100,6 +103,7 @@ const SessionDetailsPage = () => {
     <div className="session-details-container">
       <h2 className="session-details-title">Session Details</h2>
       {errorMessage && <p className="error-message">{errorMessage}</p>}
+      {isLoading ? <LoadingMessage text="Fetching session details..." /> : null}
       {sessionDetails.length > 0 ? (
         <div className="session-details-table-wrapper">
           <table className="session-details-table">
@@ -120,7 +124,7 @@ const SessionDetailsPage = () => {
           </table>
         </div>
       ) : (
-        <p className="no-data-message">No session details available.</p>
+        <p className="no-data-message">{isLoading ? "" : "No session details available."}</p>
       )}
       <div className="form-actions">
         <button

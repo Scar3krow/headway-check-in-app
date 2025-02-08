@@ -856,23 +856,39 @@ def logout_device():
     user_id = decoded_token.get('id')
     device_token = decoded_token.get('device_token')
 
-    # 🔥 Remove only **this** device session
-    db.collection('users').document(user_id).collection('sessions').document(device_token).delete()
+    if not device_token:
+        return cors_enabled_response({'message': 'No device token found'}, 400)
 
+    # 🔥 Check if the session exists before trying to delete
+    session_ref = db.collection('users').document(user_id).collection('sessions').document(device_token)
+    session_doc = session_ref.get()
+
+    if not session_doc.exists:
+        return cors_enabled_response({'message': 'Session not found'}, 404)
+
+    session_ref.delete()
     return cors_enabled_response({'message': 'Logged out from this device successfully'}, 200)
 
 
 @main_bp.route('/logout-all', methods=['POST'])
 def logout_all():
-    """Log out from all devices for the user."""
+    """Log out all devices for the specified user."""
     decoded_token, error_response, status_code = validate_token()
     if error_response:
         return cors_enabled_response(error_response, status_code)
 
-    user_id = decoded_token.get('id')
+    data = request.get_json()
+    target_user_id = data.get('user_id')  # ✅ Admin specifies which user to log out
 
-    # 🔥 Remove **all** sessions for this user
-    sessions_ref = db.collection('users').document(user_id).collection('sessions')
+    if not target_user_id:
+        return cors_enabled_response({'message': 'User ID is required'}, 400)
+
+    # 🔥 Ensure only admins can log out other users
+    if decoded_token.get('role') != "admin" and decoded_token.get('id') != target_user_id:
+        return cors_enabled_response({'message': 'Unauthorized: Cannot log out other users'}, 403)
+
+    # 🔥 Remove **all** sessions for the specified user
+    sessions_ref = db.collection('users').document(target_user_id).collection('sessions')
     for session in sessions_ref.stream():
         session.reference.delete()
 

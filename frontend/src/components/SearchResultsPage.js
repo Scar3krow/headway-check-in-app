@@ -10,6 +10,7 @@ const SearchResultsPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const query = new URLSearchParams(location.search).get("query");
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         if (!query) return;
@@ -35,6 +36,8 @@ const SearchResultsPage = () => {
             } catch (error) {
                 console.error("Error fetching search results:", error);
                 setErrorMessage("Error fetching search results. Please try again later.");
+            } finally {
+                setIsLoading(false); // Hide loading
             }
         };
 
@@ -53,6 +56,7 @@ const SearchResultsPage = () => {
         <div className="client-dashboard-container">
             <h2 className="client-dashboard-title">Search Results</h2>
             <div className="client-dashboard-content">
+                {isLoading ? <LoadingMessage text="Searching for clients..." /> : null}
                 {searchResults.length > 0 ? (
                     <ul className="search-results-list">
                         {searchResults.map((client) => (

@@ -14,6 +14,7 @@ const ClientResultsPage = () => {
     const [sessionIds, setSessionIds] = useState([]);
     const [errorMessage, setErrorMessage] = useState("");
     const navigate = useNavigate();
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         const fetchClientData = async () => {
@@ -65,6 +66,8 @@ const ClientResultsPage = () => {
             } catch (error) {
                 console.error("Error fetching client data:", error);
                 setErrorMessage("Error fetching client data. Please try again.");
+            } finally {
+                setIsLoading(false);
             }
         };
 
@@ -141,6 +144,8 @@ const ClientResultsPage = () => {
 
     return (
         <div className="client-dashboard-container">
+            {isLoading ? <LoadingMessage text="Loading client details..." /> : null}
+            <h2>{isLoading ? "" : `${clientName}'s Results`}</h2>
             <h2 className="client-dashboard-title">{clientName}'s Results</h2>
             {errorMessage && <p className="error-message">{errorMessage}</p>}
             {!graphData && !responsesTable.rows.length ? (

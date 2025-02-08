@@ -12,6 +12,7 @@ const ClientResponsesPage = () => {
     const [graphData, setGraphData] = useState(null);
     const [errorMessage, setErrorMessage] = useState("");
     const navigate = useNavigate();
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         const fetchResponses = async () => {
@@ -48,6 +49,8 @@ const ClientResponsesPage = () => {
             } catch (error) {
                 console.error("Error fetching responses:", error);
                 setErrorMessage("Error fetching responses. Please try again later.");
+            } finally {
+                setIsLoading(false);
             }
         };
 
@@ -160,6 +163,7 @@ const ClientResponsesPage = () => {
         <div className="responses-page-container">
             <h2 className="responses-title">Your Responses</h2>
             {errorMessage && <p className="error-message">{errorMessage}</p>}
+            {isLoading ? <LoadingMessage text="Fetching responses..." /> : null}
             {!responsesTable.rows.length && !graphData ? (
                 <p className="no-data-message">No responses available to display.</p>
             ) : (
