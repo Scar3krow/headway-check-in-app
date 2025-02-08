@@ -74,8 +74,8 @@
 
 /* ✅ Back Button */
 .back-btn {
-    background: #D1DDCB;
-    color: #587266;
+    background-color: #587266;
+    color: #D1DDCB;
     padding: 12px 20px;
     border-radius: 8px;
     cursor: pointer;
