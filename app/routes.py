@@ -19,7 +19,7 @@ if ENVIRONMENT == "experimental":
 else:
     FRONTEND_URL = "https://headway-check-in-app-1.onrender.com"
 
-print(f"🔹 Running in {ENVIRONMENT} mode. Frontend URL: {FRONTEND_URL}, API URL: {API_URL}")
+print(f"🔹 Running in {ENVIRONMENT} mode. Frontend URL: {FRONTEND_URL}")
 
 # ✅ Ensure API calls are handled properly
 API_PREFIXES = ("/api/", "/register", "/login", "/questions", "/submit-responses", "/past-responses")
