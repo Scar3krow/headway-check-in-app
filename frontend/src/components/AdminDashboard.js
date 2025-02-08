@@ -17,7 +17,7 @@ const AdminDashboard = () => {
     useEffect(() => {
         const role = localStorage.getItem("role");
         if (role !== "admin") {
-            navigate("/unauthorized"); // Redirect non-admin users
+            navigate("/unauthorized"); 
         }
     }, [navigate]);
 
@@ -25,7 +25,7 @@ const AdminDashboard = () => {
         setError("");
         try {
             const token = localStorage.getItem("token");
-            const deviceToken = localStorage.getItem("device_token"); // 🔥 Added device token
+            const deviceToken = localStorage.getItem("device_token"); 
 
             const response = await axios.post(
                 `${API_URL}/generate-invite`,
@@ -33,7 +33,7 @@ const AdminDashboard = () => {
                 {
                     headers: { 
                         Authorization: `Bearer ${token}`,
-                        "Device-Token": deviceToken, // 🔥 Send device token
+                        "Device-Token": deviceToken, 
                     },
                 }
             );
@@ -52,7 +52,7 @@ const AdminDashboard = () => {
     const handleToggleView = () => {
         setIsClinicianView(!isClinicianView);
 
-        // 🔥 **Redirect Immediately After Toggle**
+        // **Redirect Immediately After Toggle**
         if (!isClinicianView) {
             navigate("/clinician-dashboard"); // ✅ Switch to Clinician View
         } else {
@@ -67,7 +67,7 @@ const AdminDashboard = () => {
 
             if (token && deviceToken) {
                 await axios.post(
-                    `${API_URL}/logout-device`, // 🔥 Logout specific device
+                    `${API_URL}/logout-device`, // Logout specific device
                     { device_token: deviceToken },
                     {
                         headers: { 
@@ -146,16 +146,10 @@ const AdminDashboard = () => {
                             View Clinician Data
                         </button>
                         <button
-                            onClick={() => navigate("/remove-clinician")}
+                            onClick={() => navigate("/remove-user")}
                             className="dashboard-button danger"
                         >
-                            Remove Clinician
-                        </button>
-                        <button
-                            onClick={() => navigate("/remove-admin")}
-                            className="dashboard-button danger"
-                        >
-                            Remove Admin
+                            Remove User
                         </button>
                     </>
                 )}

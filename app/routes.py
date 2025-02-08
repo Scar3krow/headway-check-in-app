@@ -657,85 +657,52 @@ def generate_invite():
         return cors_enabled_response({'message': 'Failed to generate invite code.', 'error': str(e)}, 500)
 
 
-@main_bp.route('/remove-clinician', methods=['POST'])
-def remove_clinician():
-    """Remove a clinician by their ID and reassign clients."""
+@main_bp.route('/remove-user', methods=['POST'])
+def remove_user():
+    """Remove a user (clinician or admin) by their ID and reassign clients if applicable."""
     data = request.get_json()
-    clinician_id = data.get('clinician_id')
+    user_id = data.get('user_id')
 
-    if not clinician_id:
-        return cors_enabled_response({'message': 'Clinician ID is required'}, 400)
+    if not user_id:
+        return cors_enabled_response({'message': 'User ID is required'}, 400)
 
     try:
-        clinician_doc = db.collection('users').document(clinician_id).get()
-        if not clinician_doc.exists:
-            return cors_enabled_response({'message': 'Clinician not found'}, 404)
+        # Fetch the user document from the `users` collection
+        user_doc = db.collection('users').document(user_id).get()
+        if not user_doc.exists:
+            return cors_enabled_response({'message': 'User not found'}, 404)
 
-        # ✅ Remove clinician from `users` collection
-        db.collection('users').document(clinician_id).delete()
-
-        # ✅ Remove clinician from `clinicians` collection
-        db.collection('clinicians').document(clinician_id).delete()
-
-        # 🔄 **Reassign Clients**
-        clients_ref = db.collection('users').where('assigned_clinician_id', '==', clinician_id).stream()
-        client_updates = []
-        for client in clients_ref:
-            client_updates.append(client.id)
-            db.collection('users').document(client.id).update({'assigned_clinician_id': None})
-
-        return cors_enabled_response({
-            'message': 'Clinician removed successfully',
-            'clients_updated': client_updates  # For debugging purposes
-        }, 200)
-
-    except Exception as e:
-        print(f"Error removing clinician: {e}")
-        return cors_enabled_response({'message': 'An error occurred while removing the clinician', 'error': str(e)}, 500)
-
-
-@main_bp.route('/remove-admin', methods=['POST'])
-def remove_admin():
-    """Remove an admin by their ID, also removing them as a clinician if applicable."""
-    data = request.get_json()
-    admin_id = data.get('admin_id')
-
-    if not admin_id:
-        return cors_enabled_response({'message': 'Admin ID is required'}, 400)
-
-    try:
-        admin_doc = db.collection('users').document(admin_id).get()
-        if not admin_doc.exists:
-            return cors_enabled_response({'message': 'Admin not found'}, 404)
+        user_data = user_doc.to_dict()
+        user_role = user_data.get('role')  # Assumes roles are stored in `users`
 
         # ✅ Remove from `users` collection
-        db.collection('users').document(admin_id).delete()
+        db.collection('users').document(user_id).delete()
 
-        # ✅ Remove from `admins` collection
-        db.collection('admins').document(admin_id).delete()
+        # ✅ If the user is a clinician, remove from `clinicians`
+        db.collection('clinicians').document(user_id).delete()
 
-        # ✅ If admin was also a clinician, remove from `clinicians`
-        clinician_doc = db.collection('clinicians').document(admin_id).get()
-        if clinician_doc.exists:
-            db.collection('clinicians').document(admin_id).delete()
+        # ✅ If the user is an admin, also remove from `admins`
+        if user_role == "admin":
+            db.collection('admins').document(user_id).delete()
 
-            # 🔄 **Reassign Clients**
-            clients_ref = db.collection('users').where('assigned_clinician_id', '==', admin_id).stream()
+        # 🔄 **Reassign Clients if user was a clinician**
+        if user_role == "clinician" or user_role == "admin":
+            clients_ref = db.collection('users').where('assigned_clinician_id', '==', user_id).stream()
             client_updates = []
             for client in clients_ref:
                 client_updates.append(client.id)
                 db.collection('users').document(client.id).update({'assigned_clinician_id': None})
 
             return cors_enabled_response({
-                'message': 'Admin removed successfully (also removed as a clinician)',
+                'message': f'User {user_role} removed successfully',
                 'clients_updated': client_updates  # For debugging purposes
             }, 200)
 
-        return cors_enabled_response({'message': 'Admin removed successfully'}, 200)
+        return cors_enabled_response({'message': 'User removed successfully'}, 200)
 
     except Exception as e:
-        print(f"Error removing admin: {e}")
-        return cors_enabled_response({'message': 'An error occurred while removing the admin', 'error': str(e)}, 500)
+        print(f"Error removing user: {e}")
+        return cors_enabled_response({'message': 'An error occurred while removing the user', 'error': str(e)}, 500)
 
 
 @main_bp.route('/get-clinicians', methods=['GET'])
