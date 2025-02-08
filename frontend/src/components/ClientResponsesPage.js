@@ -5,8 +5,7 @@ import "../styles/global.css";
 import "../styles/table.css";
 import "../styles/dashboard.css";
 import "../styles/responsespage.css";
-
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+import { API_URL } from "../config";
 
 const ClientResponsesPage = () => {
     const [responsesTable, setResponsesTable] = useState({ rows: [], sessionDates: [], sessionIds: [] });

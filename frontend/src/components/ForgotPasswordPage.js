@@ -2,8 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import "../styles/global.css"; // Consolidated global styles
 import "../styles/forms.css"; // Form-specific styles
-
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+import { API_URL } from "../config";
 
 const ForgotPassword = () => {
     const [email, setEmail] = useState("");

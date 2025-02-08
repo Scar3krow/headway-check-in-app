@@ -4,8 +4,7 @@ import "../styles/global.css";
 import "../styles/dashboard.css";
 import "../styles/table.css";
 import ClinicianGraph from "./ClinicianGraph";
-
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+import { API_URL } from "../config";
 
 const ClientResultsPage = () => {
     const { userId } = useParams();

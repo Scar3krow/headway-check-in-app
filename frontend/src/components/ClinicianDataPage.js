@@ -5,8 +5,7 @@ import "../styles/global.css"; // Consolidated global styles
 import "../styles/forms.css"; // For form-specific styles
 import "../styles/table.css"; // For table-specific styles
 import "../styles/cliniciandata.css"; // Page-specific styles
-
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+import { API_URL } from "../config";
 
 const ClinicianDataPage = () => {
     const [clinicians, setClinicians] = useState([]);

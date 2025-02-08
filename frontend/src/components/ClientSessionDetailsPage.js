@@ -4,8 +4,7 @@ import "../styles/global.css";
 import "../styles/forms.css";
 import "../styles/table.css";
 import "../styles/sessiondetails.css";
-
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+import { API_URL } from "../config";
 
 const ClientSessionDetailsPage = () => {
     const { sessionId } = useParams();

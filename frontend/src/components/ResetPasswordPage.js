@@ -3,8 +3,7 @@ import { useParams } from "react-router-dom";
 import axios from "axios";
 import "../styles/global.css"; // Consolidated global styles
 import "../styles/forms.css"; // Form-specific styles
-
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000"
+import { API_URL } from "../config";
 
 const ResetPassword = () => {
     const { token } = useParams();

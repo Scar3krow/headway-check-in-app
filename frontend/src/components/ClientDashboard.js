@@ -5,8 +5,7 @@ import "../styles/dashboard.css";
 import "../styles/buttons.css";
 import "../styles/questionnaire.css";
 import "../styles/table.css";
-
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+import { API_URL } from "../config";
 
 const ClientDashboard = () => {
     const [isCheckInVisible, setIsCheckInVisible] = useState(false);

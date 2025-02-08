@@ -4,8 +4,7 @@ import "../styles/global.css"; // Consolidated global styles
 import "../styles/dashboard.css"; // Dashboard-specific styles
 import "../styles/buttons.css"; // Button-specific styles
 import "../styles/searchdropdown.css"; // Specific for search dropdown
-
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+import { API_URL } from "../config";
 
 const ClinicianDashboard = () => {
     const [searchQuery, setSearchQuery] = useState("");

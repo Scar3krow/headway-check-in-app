@@ -3,8 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import "../styles/global.css"; // Consolidated global styles
 import "../styles/forms.css";  // Form-specific styles
-
-const API_URL = process.env.REACT_APP_API_URL || "http://127.0.0.1:5000";
+import { API_URL } from "../config";
 
 const Register = () => {
   const [formData, setFormData] = useState({

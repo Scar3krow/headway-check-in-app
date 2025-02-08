@@ -4,8 +4,7 @@ import "../styles/global.css";    // Consolidated global styles
 import "../styles/forms.css";     // Form layouts & messages
 import "../styles/table.css";     // Shared table styles
 import "../styles/sessiondetails.css"; // Specific styles for session details
-
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+import { API_URL } from "../config";
 
 const SessionDetailsPage = () => {
   const { sessionId } = useParams();

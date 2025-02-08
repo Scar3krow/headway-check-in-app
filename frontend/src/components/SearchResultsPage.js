@@ -2,8 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import "../styles/global.css"; // Consolidated global styles
 import "../styles/dashboard.css"; // Dashboard-specific styles
-
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+import { API_URL } from "../config";
 
 const SearchResultsPage = () => {
     const [searchResults, setSearchResults] = useState([]);
