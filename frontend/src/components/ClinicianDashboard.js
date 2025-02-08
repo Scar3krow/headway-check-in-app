@@ -116,8 +116,9 @@ const ClinicianDashboard = () => {
                         placeholder="Search for a client by name..."
                         className="search-input styled-textbox"
                     />
-                    {isLoading ? <LoadingMessage text="Searching..." /> : null} {/* set loading message */}
-                    {clientOptions.length > 0 ? (
+                    {isLoading ? (
+                        <LoadingMessage text="Searching..." />
+                    ) : clientOptions.length > 0 ? (
                         <ul className="dropdown-menu">
                             {clientOptions.map((client) => (
                                 <li
@@ -130,7 +131,7 @@ const ClinicianDashboard = () => {
                             ))}
                         </ul>
                     ) : searchQuery.length >= 2 ? (
-                        <p className="no-results">No matches found</p>
+                        <p className="no-results">No matches found</p> // ✅ This only appears AFTER loading
                     ) : null}
                     <div className="search-container">
                         <div className="form-actions">

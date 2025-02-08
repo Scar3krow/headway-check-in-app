@@ -8,7 +8,6 @@ import ClinicianGraph from "./ClinicianGraph";
 import { API_URL } from "../config";
 import LoadingMessage from "../components/LoadingMessage";
 
-
 const ClientResultsPage = () => {
     const { userId } = useParams();
     const [clientName, setClientName] = useState("");
@@ -147,29 +146,33 @@ const ClientResultsPage = () => {
 
     return (
         <div className="client-dashboard-container">
-            {isLoading ? <LoadingMessage text="Loading client details..." /> : null}
-            <h2>{isLoading ? "" : `${clientName}'s Results`}</h2>
-            <h2 className="client-dashboard-title">{clientName}'s Results</h2>
-            {errorMessage && <p className="error-message">{errorMessage}</p>}
-            {!graphData && !responsesTable.rows.length ? (
-                <p className="no-data-message">No check-ins have been completed.</p>
+            {isLoading ? (
+                <LoadingMessage text="Loading client details..." />
             ) : (
-                <ClinicianGraph
-                    graphData={graphData}
-                    firstSessionScore={graphData.datasets[0]?.data[0] || 0}
-                    sessionIds={sessionIds}
-                    onSessionClick={handleSessionClick}
-                />
-            )}
-            <div className="form-actions">
-                <button onClick={handleBack} className="dashboard-button secondary">
-                    Back to Dashboard
-                </button>
-            </div>
-            {graphData && (
-                <p className="data-point-instructions">
-                    Click on a data point to see answers for each question.
-                </p>
+                <>
+                    <h2 className="client-dashboard-title">{`${clientName}'s Results`}</h2>
+                    {errorMessage && <p className="error-message">{errorMessage}</p>}
+                    {!graphData && !responsesTable.rows.length ? (
+                        <p className="no-data-message">No check-ins have been completed.</p>
+                    ) : (
+                        <ClinicianGraph
+                            graphData={graphData}
+                            firstSessionScore={graphData.datasets[0]?.data[0] || 0}
+                            sessionIds={sessionIds}
+                            onSessionClick={handleSessionClick}
+                        />
+                    )}
+                    <div className="form-actions">
+                        <button onClick={handleBack} className="dashboard-button secondary">
+                            Back to Dashboard
+                        </button>
+                    </div>
+                    {graphData && (
+                        <p className="data-point-instructions">
+                            Click on a data point to see answers for each question.
+                        </p>
+                    )}
+                </>
             )}
         </div>
     );

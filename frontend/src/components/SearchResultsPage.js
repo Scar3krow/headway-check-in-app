@@ -6,7 +6,6 @@ import "../styles/loading.css";
 import { API_URL } from "../config";
 import LoadingMessage from "../components/LoadingMessage";
 
-
 const SearchResultsPage = () => {
     const [searchResults, setSearchResults] = useState([]);
     const [errorMessage, setErrorMessage] = useState("");
@@ -19,11 +18,12 @@ const SearchResultsPage = () => {
         if (!query) return;
 
         const fetchSearchResults = async () => {
+            setIsLoading(true); // Start loading state
             try {
                 const token = localStorage.getItem("token");
                 const role = localStorage.getItem("role");
 
-                // ✅ **Admins search all clients, Clinicians only their assigned clients**
+                // ✅ Admins search all clients, Clinicians only their assigned clients
                 const searchUrl = role === "admin"
                     ? `${API_URL}/search-all-clients?query=${query}`
                     : `${API_URL}/search-clients?query=${query}`;
@@ -40,7 +40,7 @@ const SearchResultsPage = () => {
                 console.error("Error fetching search results:", error);
                 setErrorMessage("Error fetching search results. Please try again later.");
             } finally {
-                setIsLoading(false); // Hide loading
+                setIsLoading(false); // Hide loading state
             }
         };
 
@@ -59,8 +59,9 @@ const SearchResultsPage = () => {
         <div className="client-dashboard-container">
             <h2 className="client-dashboard-title">Search Results</h2>
             <div className="client-dashboard-content">
-                {isLoading ? <LoadingMessage text="Searching for clients..." /> : null}
-                {searchResults.length > 0 ? (
+                {isLoading ? (
+                    <LoadingMessage text="Searching for clients..." />
+                ) : searchResults.length > 0 ? (
                     <ul className="search-results-list">
                         {searchResults.map((client) => (
                             <li

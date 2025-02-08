@@ -1,10 +1,13 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { API_URL } from "../config";
+import LoadingMessage from "../components/LoadingMessage"; // ✅ Import the loading message component
+import "../styles/loading.css";
 
 const Logout = () => {
     const navigate = useNavigate();
+    const [isLoading, setIsLoading] = useState(true); // ✅ Add loading state
 
     useEffect(() => {
         const logoutUser = async () => {
@@ -34,14 +37,17 @@ const Logout = () => {
             localStorage.removeItem("user_id");
             localStorage.removeItem("device_token");
 
-            // ✅ Redirect to login page
-            navigate("/login");
+            // ✅ Redirect to login page after a short delay
+            setTimeout(() => {
+                setIsLoading(false);
+                navigate("/login");
+            }, 1000); // Delay to show logout message briefly
         };
 
         logoutUser();
     }, [navigate]);
 
-    return <p>Logging out...</p>; // Simple loading message
+    return <LoadingMessage text="Logging out, please wait..." />; // ✅ Use the new loading component
 };
 
 export default Logout;

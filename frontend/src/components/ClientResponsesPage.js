@@ -19,26 +19,27 @@ const ClientResponsesPage = () => {
 
     useEffect(() => {
         const fetchResponses = async () => {
+            setIsLoading(true); // ✅ Start loading before the request
             try {
                 const token = localStorage.getItem("token");
                 const deviceToken = localStorage.getItem("device_token");
                 const userId = localStorage.getItem("user_id");
-
+    
                 if (!token || !deviceToken || !userId) {
                     setErrorMessage("Session expired. Please log in again.");
                     navigate("/login");
                     return;
                 }
-
+    
                 const response = await fetch(`${API_URL}/past-responses?user_id=${userId}`, {
                     headers: {
                         Authorization: `Bearer ${token}`,
                         "Device-Token": deviceToken,
                     },
                 });
-
+    
                 const responseData = await response.json();
-
+    
                 if (response.ok) {
                     if (responseData.message === "No responses available for this user") {
                         setGraphData(null);
@@ -53,10 +54,10 @@ const ClientResponsesPage = () => {
                 console.error("Error fetching responses:", error);
                 setErrorMessage("Error fetching responses. Please try again later.");
             } finally {
-                setIsLoading(false);
+                setIsLoading(false); // ✅ End loading after the request completes
             }
         };
-
+    
         fetchResponses();
     }, [navigate]);
 
@@ -166,8 +167,10 @@ const ClientResponsesPage = () => {
         <div className="responses-page-container">
             <h2 className="responses-title">Your Responses</h2>
             {errorMessage && <p className="error-message">{errorMessage}</p>}
-            {isLoading ? <LoadingMessage text="Fetching responses..." /> : null}
-            {!responsesTable.rows.length && !graphData ? (
+    
+            {isLoading ? (
+                <LoadingMessage text="Fetching responses..." /> // ✅ Show loading message
+            ) : responsesTable.rows.length === 0 && !graphData ? (
                 <p className="no-data-message">No responses available to display.</p>
             ) : (
                 <>
@@ -179,15 +182,19 @@ const ClientResponsesPage = () => {
                     )}
                 </>
             )}
-            <div className="form-actions">
-                <button onClick={() => navigate("/client-dashboard")} className="dashboard-button secondary">
-                    Back to Dashboard
-                </button>
-                <button onClick={handleLogout} className="dashboard-button danger">
-                    Logout
-                </button>
-            </div>
-            {graphData && (
+    
+            {!isLoading && (
+                <div className="form-actions">
+                    <button onClick={() => navigate("/client-dashboard")} className="dashboard-button secondary">
+                        Back to Dashboard
+                    </button>
+                    <button onClick={handleLogout} className="dashboard-button danger">
+                        Logout
+                    </button>
+                </div>
+            )}
+    
+            {!isLoading && graphData && (
                 <p className="data-point-instructions">
                     Click on a data point to see answers for each question.
                 </p>
