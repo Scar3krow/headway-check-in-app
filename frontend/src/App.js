@@ -15,11 +15,10 @@ import SessionDetailsPage from "./components/SessionDetailsPage";
 import ClientSessionDetailsPage from "./components/ClientSessionDetailsPage";
 import AdminDashboard from "./components/AdminDashboard";
 import Unauthorized from "./components/Unauthorized";
-import RemoveClinicianPage from "./components/RemoveClinicianPage";
+import RemoveUserPage from "./components/RemoveUserPage";
 import ClinicianDataPage from "./components/ClinicianDataPage";
 import ForgotPasswordPage from "./components/ForgotPasswordPage";
 import ResetPasswordPage from "./components/ResetPasswordPage";
-import RemoveAdminPage from "./components/RemoveAdminPage";
 import './styles/global.css';
 
 // 🔐 **Protected Route Component**
@@ -108,8 +107,7 @@ function App() {
                     {/* Admins Only */}
                     <Route path="/clinician-data" element={<ProtectedRoute element={<ClinicianDataPage />} roleRequired="admin" />} />
                     <Route path="/admin-dashboard" element={<ProtectedRoute element={<AdminDashboard />} roleRequired="admin" />} />
-                    <Route path="/remove-clinician" element={<ProtectedRoute element={<RemoveClinicianPage />} roleRequired="admin" />} />
-                    <Route path="/remove-admin" element={<ProtectedRoute element={<RemoveAdminPage />} roleRequired="admin" />} />
+                    <Route path="/remove-user" element={<ProtectedRoute element={<RemoveUserPage />} roleRequired="admin" />} />
 
                     {/* Mixed Roles (Accessible by Multiple Roles) */}
                     <Route path="/forms" element={<ProtectedRoute element={<Form />} roleRequired={["client", "clinician", "admin"]} />} />
