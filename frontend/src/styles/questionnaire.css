@@ -7,19 +7,127 @@
 .question-row {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     padding: 15px;
     border: 1px solid #ccc;
     border-radius: 8px;
     background-color: #F1EEE9;
 }
 
+/* ✅ Improve Readability for Question Text */
+.question-left {
+    flex: 1;
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+/* ✅ Keep Likert Scale Layout Clean */
 .likert-options {
     display: flex;
     gap: 10px;
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
 }
 
-/* Improve Highlighting of Selected Answer */
+/* ✅ Ensure Selected Answer is Visually Distinct */
 .likert-option input[type="radio"]:checked + .likert-label {
     color: #3f8f69;
     font-weight: bold;
+}
+
+/* ✅ Improve Tap Area for Mobile */
+.likert-option {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 5px;
+    transition: background 0.3s;
+}
+
+.likert-option:hover {
+    background: rgba(95, 158, 160, 0.2);
+}
+
+/* ✅ Mobile Optimization */
+@media (max-width: 768px) {
+    .questionnaire-container {
+        width: 100%;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+        box-sizing: border-box;
+    }
+
+    .question-box {
+        width: 90%;
+        text-align: center;
+        font-size: 1.2rem;
+    }
+
+    .response-options {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+        max-width: 300px;
+    }
+
+    .response-btn {
+        padding: 12px;
+        border: none;
+        border-radius: 5px;
+        background: #353d5f;
+        color: white;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: 0.3s;
+    }
+
+    .response-btn.selected {
+        background: #587266;
+    }
+
+    /* ✅ Center Navigation Buttons */
+    .nav-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        margin-top: 15px;
+    }
+
+    .nav-btn {
+        font-size: 1.5rem;
+        padding: 10px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        transition: 0.3s;
+    }
+
+    .nav-btn:hover {
+        color: #587266;
+    }
+
+    /* ✅ Improve Submit Button Spacing */
+    .submit-btn {
+        padding: 12px;
+        font-size: 1rem;
+        margin-top: 20px;
+        background: #587266;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        width: 100%;
+        max-width: 200px;
+        text-align: center;
+    }
+
+    .submit-btn:disabled {
+        background: gray;
+        cursor: not-allowed;
+    }
 }

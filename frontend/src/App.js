@@ -19,6 +19,7 @@ import RemoveUserPage from "./components/RemoveUserPage";
 import ClinicianDataPage from "./components/ClinicianDataPage";
 import ForgotPasswordPage from "./components/ForgotPasswordPage";
 import ResetPasswordPage from "./components/ResetPasswordPage";
+import QuestionnairePage from "./components/QuestionnairePage";
 import './styles/global.css';
 
 // 🔐 **Protected Route Component**
@@ -91,6 +92,7 @@ function App() {
                     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                     <Route path="/reset-password" element={<ResetPasswordPage />} />
                     <Route path="/unauthorized" element={<Unauthorized />} />
+                    <Route path="/questionnaire" element={<QuestionnairePage />} />
 
                     {/* 🔐 **Protected Routes by Role** */}
                     
