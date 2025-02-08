@@ -1,112 +1,144 @@
-/* ✅ Keep Form Layout the Same */
-.questionnaire-form {
-    display: flex;
-    flex-direction: column;
-    gap: 30px;
+/* 🟢 Ensure the Questionnaire Page Layout */
+.questionnaire-container {
     width: 100%;
     max-width: 800px;
     margin: 0 auto;
+    padding: 20px;
+    text-align: center;
 }
 
-/* ✅ Make Sure Each Question is Styled Correctly */
+/* ✅ Styling for "Check-In" Header */
+.questionnaire-title {
+    font-size: 24px;
+    font-weight: bold;
+    color: #587266; /* Match theme */
+    margin-bottom: 10px;
+}
+
+/* ✅ Description Under "Check-In" Header */
+.questionnaire-description {
+    font-size: 16px;
+    color: #587266; /* Match the theme */
+    margin-bottom: 20px;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* 🟢 Desktop Version */
+.desktop-questionnaire {
+    display: block; /* Ensure it shows on larger screens */
+}
+
+.mobile-questionnaire-container {
+    display: none; /* Hide mobile view by default */
+}
+
+/* 🟢 Ensure Each Question is Styled */
 .question-row {
     display: flex;
     flex-direction: row;
-    gap: 20px;
     align-items: center;
-    padding: 20px;
-    background-color: #F1EEE9;
+    padding: 15px;
     border: 1px solid #ddd;
-    border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    background-color: #F1EEE9;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 10px;
 }
 
-/* ✅ Left Section for Question Text */
-.question-left {
-    flex: 1;
-    max-width: 300px;
-}
-
-/* ✅ Make Question Text Readable */
-.question-text {
-    font-size: 18px;
-    font-weight: bold;
-    color: #587266;
-    text-align: left;
-}
-
-/* ✅ Keep Likert Options Spaced Evenly */
+/* ✅ Style the Likert Scale (Desktop) */
 .likert-options {
-    flex: 2;
     display: flex;
     justify-content: space-between;
     gap: 10px;
 }
 
-/* ✅ Improve Clickable Radio Buttons */
-.likert-option {
-    cursor: pointer;
-    font-size: 16px;
-    font-weight: bold;
-    color: #252525;
-    transition: color 0.3s ease;
-    display: inline-block;
-}
-
-/* ✅ Change Color on Hover */
-.likert-option:hover .likert-label {
-    color: #587266;
-}
-
-/* ✅ Hide Default Radio Buttons */
+/* ✅ Style the Radio Buttons */
 .likert-option input[type="radio"] {
     display: none;
 }
 
-/* ✅ Highlight Selected Answer */
+/* ✅ Selected Response Color */
 .likert-option input[type="radio"]:checked + .likert-label {
     color: #3f8f69;
     font-weight: bold;
 }
 
-/* 📱 **MOBILE VIEW: One Question at a Time** */
+/* ✅ Buttons at the Bottom */
+.form-buttons {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+}
+
+/* ✅ Back Button */
+.back-btn {
+    background: #D1DDCB;
+    color: #587266;
+    padding: 12px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+/* ✅ Submit Button */
+.submit-btn {
+    background: #587266;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    display: block;
+    margin: 20px auto;
+}
+
+.submit-btn:disabled {
+    background: gray;
+    cursor: not-allowed;
+}
+
+/* 📱 **MOBILE VIEW FIXES** */
 @media (max-width: 768px) {
-    .questionnaire-container {
-        width: 100%;
-        height: 100vh;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        padding: 20px;
-        box-sizing: border-box;
-        background-color: #F1EEE9;
+    .desktop-questionnaire {
+        display: none; /* Hide Desktop View */
     }
 
-    /* ✅ Hide all questions except active one */
+    .mobile-questionnaire-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        padding: 20px;
+    }
+
+    /* ✅ Fix Double Header Issue */
+    .mobile-questionnaire-container .questionnaire-title {
+        margin-bottom: 5px;
+    }
+
+    /* ✅ Mobile "Check-In" Description */
+    .mobile-questionnaire-container .questionnaire-description {
+        text-align: center;
+        font-size: 14px;
+        max-width: 90%;
+    }
+
+    /* ✅ Ensure Only One Question is Visible */
     .question-row {
         display: none;
-        width: 100%;
         flex-direction: column;
         align-items: center;
         text-align: center;
+        width: 100%;
     }
 
     .question-row.active {
         display: flex;
     }
 
-    /* ✅ Center the Question */
-    .question-text {
-        font-size: 1.4rem;
-        font-weight: bold;
-        color: #587266;
-        text-align: center;
-        max-width: 90%;
-        margin-bottom: 20px;
-    }
-
-    /* ✅ Answer Choices as Buttons */
+    /* ✅ Style the Answer Choices */
     .response-options {
         display: flex;
         flex-direction: column;
@@ -119,7 +151,7 @@
         padding: 15px;
         border: none;
         border-radius: 10px;
-        background: #353d5f; /* Match Dashboard Button Color */
+        background: #587266;
         color: white;
         font-size: 1.2rem;
         cursor: pointer;
@@ -128,9 +160,9 @@
         width: 100%;
     }
 
-    /* ✅ Highlight selected answer */
+    /* ✅ Highlight Selected Answer */
     .response-btn.selected {
-        background: #587266;
+        background: #D1DDCB;
         font-weight: bold;
     }
 
@@ -149,7 +181,7 @@
         border: none;
         background: transparent;
         cursor: pointer;
-        color: #353d5f;
+        color: #587266;
         transition: 0.3s;
     }
 
@@ -157,22 +189,12 @@
         color: #587266;
     }
 
-    /* ✅ Submit Button */
+    /* ✅ Hide Submit Button Until Last Question */
     .submit-btn {
-        padding: 15px;
-        font-size: 1.2rem;
-        background: #587266;
-        color: white;
-        border: none;
-        border-radius: 10px;
-        cursor: pointer;
-        margin-top: 20px;
-        width: 100%;
-        max-width: 350px;
+        display: none;
     }
 
-    .submit-btn:disabled {
-        background: gray;
-        cursor: not-allowed;
+    .submit-btn.visible {
+        display: block;
     }
 }

@@ -91,10 +91,15 @@ const QuestionnairePage = () => {
     return (
         <div className="questionnaire-container">
             {isLoading ? <LoadingMessage text="Loading questionnaire..." /> : null}
-
-            {/* ✅ Desktop Questionnaire (Keep it exactly as before) */}
+    
+            {/* ✅ Desktop Questionnaire */}
             <div className="desktop-questionnaire">
                 <h2 className="questionnaire-title">Check-In</h2>
+                <p className="questionnaire-description">
+                    This form has 10 statements about how you have been OVER THE LAST WEEK.
+                    Please read each statement and think how often you felt that was last week.
+                    Then select the box which is closest to this.
+                </p>
                 <form className="questionnaire-form">
                     {questions.map((q) => (
                         <div key={q.id} className="question-row">
@@ -129,10 +134,15 @@ const QuestionnairePage = () => {
                     Submit Responses
                 </button>
             </div>
-
-            {/* ✅ Mobile Questionnaire (Fixed) */}
+    
+            {/* ✅ Mobile Questionnaire */}
             <div className="mobile-questionnaire-container">
                 <h2 className="questionnaire-title">Check-In</h2>
+                <p className="questionnaire-description">
+                    This form has 10 statements about how you have been OVER THE LAST WEEK.
+                    Please read each statement and think how often you felt that was last week.
+                    Then select the box which is closest to this.
+                </p>
                 {questions.length > 0 && (
                     <>
                         <p className="question-text">{questions[currentIndex].text}</p>
@@ -158,7 +168,7 @@ const QuestionnairePage = () => {
                             </button>
                         </div>
                         {currentIndex === questions.length - 1 && (
-                            <button className="submit-btn" onClick={handleSubmit} disabled={Object.keys(responses).length !== questions.length}>
+                            <button className="submit-btn visible" onClick={handleSubmit} disabled={Object.keys(responses).length !== questions.length}>
                                 Submit Responses
                             </button>
                         )}
@@ -167,6 +177,6 @@ const QuestionnairePage = () => {
             </div>
         </div>
     );
-};
+}
 
 export default QuestionnairePage;

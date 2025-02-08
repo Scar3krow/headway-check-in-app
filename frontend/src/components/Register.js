@@ -200,10 +200,10 @@ const Register = () => {
           {formData.password && (
             <div className="password-requirements">
               <p className={passwordValidations.minLength ? "valid" : "invalid"}>
-                ✅ At least 6 characters
+                At least 6 characters
               </p>
               <p className={passwordValidations.hasNumberOrSpecial ? "valid" : "invalid"}>
-                ✅ Contains a number or special character (@, $, !, %, *, ?, &)
+                Contains a number or special character (@, $, !, %, *, ?, &)
               </p>
             </div>
           )}
