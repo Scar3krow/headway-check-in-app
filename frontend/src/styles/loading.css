@@ -1,40 +1,46 @@
+/* Centered loading container */
 .loading-container {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     text-align: center;
-    margin-top: 20px;
+    height: 100vh; /* Ensures full-page centering */
+    background-color: #F1EEE9; /* Matches global background */
 }
 
+/* Animated loading spinner */
 .loading-spinner {
-    width: 30px;
-    height: 30px;
-    border: 4px solid rgba(0, 0, 0, 0.1);
-    border-top-color: #353d5f; /* Matches Headway Psychology theme */
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(88, 114, 102, 0.3); /* Softer theme color */
+    border-top-color: #587266; /* Matches primary button color */
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
 
+/* Loading text */
 .loading-text {
-    margin-top: 10px;
-    font-size: 16px;
-    color: #353d5f;
-    font-weight: 500;
+    margin-top: 15px;
+    font-size: 18px;
+    color: #587266; /* Matches dashboard button */
+    font-weight: bold;
+    letter-spacing: 0.5px;
 }
 
-/* 🟢 Mobile-Friendly Adjustments */
+/* Mobile-Friendly Adjustments */
 @media (max-width: 768px) {
     .loading-text {
-        font-size: 14px;
+        font-size: 16px;
     }
     
     .loading-spinner {
-        width: 25px;
-        height: 25px;
+        width: 30px;
+        height: 30px;
     }
 }
 
+/* Spinner animation */
 @keyframes spin {
     to {
         transform: rotate(360deg);
