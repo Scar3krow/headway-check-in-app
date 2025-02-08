@@ -125,14 +125,20 @@ const QuestionnairePage = () => {
                         </div>
                     ))}
                 </form>
-                <button
-                    type="button"
-                    onClick={handleSubmit}
-                    className="submit-btn"
-                    disabled={Object.keys(responses).length !== questions.length}
-                >
-                    Submit Responses
-                </button>
+                <div className="form-buttons">
+                    {/* ✅ Back Button in Desktop */}
+                    <button type="button" className="back-btn" onClick={() => navigate("/client-dashboard")}>
+                        ⬅ Back
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleSubmit}
+                        className="submit-btn"
+                        disabled={Object.keys(responses).length !== questions.length}
+                    >
+                        Submit Responses
+                    </button>
+                </div>
             </div>
     
             {/* ✅ Mobile Questionnaire */}
@@ -145,6 +151,7 @@ const QuestionnairePage = () => {
                 </p>
                 {questions.length > 0 && (
                     <>
+                        <p className="question-counter">{currentIndex + 1}/{questions.length}</p>
                         <p className="question-text">{questions[currentIndex].text}</p>
                         <div className="response-options">
                             {["Not at all", "Occasionally", "Sometimes", "Often", "All the time"].map(
@@ -160,11 +167,11 @@ const QuestionnairePage = () => {
                             )}
                         </div>
                         <div className="navigation-buttons">
-                            <button className="nav-btn" onClick={handlePrevious} disabled={currentIndex === 0}>
-                                ⬅️
+                            <button className="nav-btn themed-nav-btn" onClick={handlePrevious} disabled={currentIndex === 0}>
+                                ⬅
                             </button>
-                            <button className="nav-btn" onClick={handleNext} disabled={currentIndex === questions.length - 1}>
-                                ➡️
+                            <button className="nav-btn themed-nav-btn" onClick={handleNext} disabled={currentIndex === questions.length - 1}>
+                                ➡
                             </button>
                         </div>
                         {currentIndex === questions.length - 1 && (
@@ -174,6 +181,10 @@ const QuestionnairePage = () => {
                         )}
                     </>
                 )}
+                {/* ✅ Back Button for Mobile */}
+                <button className="back-btn" onClick={() => navigate("/client-dashboard")}>
+                    Back
+                </button>
             </div>
         </div>
     );
