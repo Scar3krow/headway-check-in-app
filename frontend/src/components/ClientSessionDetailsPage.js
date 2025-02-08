@@ -4,7 +4,10 @@ import "../styles/global.css";
 import "../styles/forms.css";
 import "../styles/table.css";
 import "../styles/sessiondetails.css";
+import "../styles/loading.css";
 import { API_URL } from "../config";
+import LoadingMessage from "../components/LoadingMessage";
+
 
 const ClientSessionDetailsPage = () => {
     const { sessionId } = useParams();

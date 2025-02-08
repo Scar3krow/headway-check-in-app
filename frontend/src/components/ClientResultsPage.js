@@ -3,8 +3,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import "../styles/global.css";
 import "../styles/dashboard.css";
 import "../styles/table.css";
+import "../styles/loading.css";
 import ClinicianGraph from "./ClinicianGraph";
 import { API_URL } from "../config";
+import LoadingMessage from "../components/LoadingMessage";
+
 
 const ClientResultsPage = () => {
     const { userId } = useParams();

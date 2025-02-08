@@ -4,6 +4,7 @@ import "../styles/global.css"; // Consolidated global styles
 import "../styles/dashboard.css"; // Dashboard-specific styles
 import "../styles/buttons.css"; // Button-specific styles
 import "../styles/searchdropdown.css"; // Specific for search dropdown
+import "../styles/loading.css";
 import { API_URL } from "../config";
 import LoadingMessage from "../components/LoadingMessage";
 

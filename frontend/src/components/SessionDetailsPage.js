@@ -4,7 +4,10 @@ import "../styles/global.css";    // Consolidated global styles
 import "../styles/forms.css";     // Form layouts & messages
 import "../styles/table.css";     // Shared table styles
 import "../styles/sessiondetails.css"; // Specific styles for session details
+import "../styles/loading.css";
 import { API_URL } from "../config";
+import LoadingMessage from "../components/LoadingMessage";
+
 
 const SessionDetailsPage = () => {
   const { sessionId } = useParams();

@@ -5,7 +5,10 @@ import "../styles/global.css";
 import "../styles/table.css";
 import "../styles/dashboard.css";
 import "../styles/responsespage.css";
+import "../styles/loading.css";
 import { API_URL } from "../config";
+import LoadingMessage from "../components/LoadingMessage";
+
 
 const ClientResponsesPage = () => {
     const [responsesTable, setResponsesTable] = useState({ rows: [], sessionDates: [], sessionIds: [] });

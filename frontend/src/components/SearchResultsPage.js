@@ -2,7 +2,10 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import "../styles/global.css"; // Consolidated global styles
 import "../styles/dashboard.css"; // Dashboard-specific styles
+import "../styles/loading.css";
 import { API_URL } from "../config";
+import LoadingMessage from "../components/LoadingMessage";
+
 
 const SearchResultsPage = () => {
     const [searchResults, setSearchResults] = useState([]);
