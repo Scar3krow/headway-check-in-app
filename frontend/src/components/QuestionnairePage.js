@@ -93,38 +93,32 @@ const QuestionnairePage = () => {
 
         const sessionId = `session_${Date.now()}`; // Generate unique session ID
 
+        const payload = {
+            session_id: sessionId,
+            questionnaire_id: selectedQuestionnaire,
+            responses: Object.keys(responses).map((questionId) => ({
+                question_id: questionId,
+                response_value: responses[questionId],
+            })),
+        };
+    
         try {
-            // ✅ Submit each response as a separate document in Firestore
-            await Promise.all(
-                Object.keys(responses).map(async (questionId) => {
-                    const payload = {
-                        response_value: responses[questionId],
-                        questionnaire_id: selectedQuestionnaire,
-                        timestamp: new Date().toISOString(), // Store timestamp properly
-                    };
-
-                    const response = await fetch(
-                        `${API_URL}/user-data/${userId}/sessions/${sessionId}/responses/${questionId}`,
-                        {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                                Authorization: `Bearer ${token}`,
-                                "Device-Token": deviceToken,
-                            },
-                            body: JSON.stringify(payload),
-                        }
-                    );
-
-                    if (!response.ok) {
-                        throw new Error(`Failed to submit response for question ${questionId}`);
-                    }
-                })
-            );
-
-            // ✅ Navigate only after all responses are submitted
+            // ✅ Send ALL responses in one request
+            const response = await fetch(`${API_URL}/user-data/${userId}/sessions/${sessionId}/responses`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                    "Device-Token": deviceToken,
+                },
+                body: JSON.stringify(payload),
+            });
+    
+            if (!response.ok) {
+                throw new Error("Failed to submit responses.");
+            }
+    
             navigate("/client-dashboard");
-
         } catch (error) {
             console.error("Error submitting responses:", error);
         }
