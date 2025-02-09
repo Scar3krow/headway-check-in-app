@@ -6,6 +6,7 @@ import "../styles/forms.css"; // For form-specific styles
 import "../styles/table.css"; // For table-specific styles
 import "../styles/cliniciandata.css"; // Page-specific styles
 import { API_URL } from "../config";
+//UPDATED
 
 const ClinicianDataPage = () => {
     const [clinicians, setClinicians] = useState([]);
@@ -23,7 +24,7 @@ const ClinicianDataPage = () => {
                 const response = await axios.get(`${API_URL}/get-clinicians`, {
                     headers: { 
                         Authorization: `Bearer ${token}`,
-                        "Device-Token": deviceToken, // 🔐 Secure API Request
+                        "Device-Token": deviceToken,
                     },
                 });
 
@@ -53,7 +54,7 @@ const ClinicianDataPage = () => {
                 params: { clinician_id: clinicianId },
                 headers: { 
                     Authorization: `Bearer ${token}`,
-                    "Device-Token": deviceToken, // 🔐 Secure API Request
+                    "Device-Token": deviceToken,
                 },
             });
 

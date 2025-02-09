@@ -236,7 +236,7 @@ def login():
         print("Exception in /login:", e)
         return cors_enabled_response({'message': 'Internal server error', 'error': str(e)}, 500)
 
-
+#UPDATED
 @main_bp.route('/questions', methods=['GET'])
 def get_questions():
     """Fetch questions based on questionnaire_id."""
@@ -251,7 +251,8 @@ def get_questions():
     except Exception as e:
         print(f"Error fetching questions: {e}")
         return cors_enabled_response({'message': 'Failed to fetch questions', 'error': str(e)}, 500)
-    
+
+#UPDATED    
 @main_bp.route('/questionnaires', methods=['GET'])
 def get_questionnaires():
     """Fetch all available questionnaires."""
@@ -264,10 +265,10 @@ def get_questionnaires():
         print(f"Error fetching questionnaires: {e}")
         return cors_enabled_response({'message': 'Failed to fetch questionnaires', 'error': str(e)}, 500)
 
-
+#UPDATED
 @main_bp.route('/submit-responses', methods=['POST'])
 def submit_responses():
-    """Submit responses to Firestore."""
+    """Submit responses to Firestore under `user_data/{user_id}/check_ins/{session_id}`."""
     try:
         decoded_token, error_response, status_code = validate_token()
         if error_response:
@@ -277,31 +278,37 @@ def submit_responses():
         if not data or 'responses' not in data or not isinstance(data['responses'], list):
             return cors_enabled_response({'message': '"responses" must be a list.'}, 400)
 
-        session_id = str(uuid.uuid4())
         user_id = decoded_token['id']
-        timestamp = firestore.SERVER_TIMESTAMP
+        session_id = str(uuid.uuid4())
+        timestamp = datetime.utcnow().isoformat()
+        questionnaire_id = data.get("questionnaire_id", "default_questionnaire")  # Default if not provided
 
+        # Ensure all responses have the required fields
         for response in data['responses']:
             if 'question_id' not in response or 'response_value' not in response:
                 return cors_enabled_response({'message': 'Each response must have "question_id" and "response_value".'}, 400)
 
-            db.collection('responses').add({
-                'user_id': user_id,
-                'session_id': session_id,
-                'question_id': response['question_id'],
-                'response_value': response['response_value'],
-                'timestamp': timestamp
-            })
+        # Prepare structured check-in data
+        responses_dict = {str(resp['question_id']): resp['response_value'] for resp in data['responses']}
+        check_in_data = {
+            "questionnaire_id": questionnaire_id,
+            "timestamp": timestamp,
+            "responses": responses_dict,
+        }
+
+        # 🔹 Store the check-in inside `user_data/{user_id}/check_ins/{session_id}`
+        db.collection("user_data").document(user_id).collection("check_ins").document(session_id).set(check_in_data)
 
         return cors_enabled_response({'message': 'Responses submitted successfully', 'session_id': session_id}, 201)
+
     except Exception as e:
         print("Exception in /submit-responses:", e)
         return cors_enabled_response({'message': 'Internal server error', 'error': str(e)}, 500)
 
-
+#UPDATED
 @main_bp.route('/past-responses', methods=['GET'])
 def past_responses():
-    """Fetch past responses for a user."""
+    """Fetch past responses for a user from `user_data/{user_id}/check_ins`."""
     decoded_token, error_response, status_code = validate_token()
     if error_response:
         return cors_enabled_response(error_response, status_code)
@@ -309,6 +316,7 @@ def past_responses():
     user_role = decoded_token.get('role')  
     user_id = decoded_token.get('id')
     query_user_id = request.args.get('user_id')
+    questionnaire_id = request.args.get('questionnaire_id', None)  # Optional filter
 
     try:
         # ✅ **Admins can query any user (Must specify user_id)**
@@ -335,128 +343,132 @@ def past_responses():
         else:
             return cors_enabled_response({'message': 'Unauthorized: Invalid role'}, 403)
 
-        # 📥 **Fetch responses for the given user_id**
-        responses_ref = db.collection('responses').where('user_id', '==', query_user_id).stream()
-        responses = [
-            {
-                'question_id': r.to_dict().get('question_id'),
-                'response_value': r.to_dict().get('response_value'),
-                'session_id': r.to_dict().get('session_id'),
-                'timestamp': r.to_dict().get('timestamp').isoformat() if r.to_dict().get('timestamp') else None
-            }
-            for r in responses_ref
-        ]
+        # 📥 **Fetch check-ins for the given user_id**
+        checkins_ref = db.collection('user_data').document(query_user_id).collection('check_ins')
 
-        if not responses:
+        # Apply questionnaire filter if provided
+        if questionnaire_id:
+            checkins_ref = checkins_ref.where("questionnaire_id", "==", questionnaire_id)
+
+        checkins = checkins_ref.stream()
+
+        responses_list = []
+        for checkin in checkins:
+            checkin_data = checkin.to_dict()
+            responses_list.append({
+                "checkin_id": checkin.id,
+                "timestamp": checkin_data["timestamp"],
+                "questionnaire_id": checkin_data["questionnaire_id"],
+                "responses": checkin_data["responses"]
+            })
+
+        if not responses_list:
             return cors_enabled_response({'message': 'No responses available for this user'}, 404)
 
-        return cors_enabled_response(responses, 200)
+        return cors_enabled_response(responses_list, 200)
 
     except Exception as e:
         print(f"Error fetching past responses: {e}")
         return cors_enabled_response({'message': 'Error retrieving past responses'}, 500)
 
-
+#UPDATED
 @main_bp.route('/submit-answer', methods=['POST'])
 def submit_answer():
-    """Submit an answer to Firestore."""
-    decoded_token, error_response, status_code = validate_token()
-    if error_response:
-        return cors_enabled_response(error_response, status_code)
+    """Submit an answer to Firestore under `user_data/{user_id}/answers/{answer_id}`."""
+    try:
+        decoded_token, error_response, status_code = validate_token()
+        if error_response:
+            return cors_enabled_response(error_response, status_code)
 
-    data = request.get_json()
-    if not data or 'answer' not in data:
-        return cors_enabled_response({'message': 'Invalid payload. "answer" is required.'}, 400)
+        data = request.get_json()
+        if not data or 'answer' not in data or 'question_id' not in data:
+            return cors_enabled_response({'message': 'Invalid payload. "answer" and "question_id" are required.'}, 400)
 
-    db.collection('answers').add({
-        'answer': data['answer'],
-        'submitted_by': decoded_token['id'],
-        'submitted_at': firestore.SERVER_TIMESTAMP
-    })
+        user_id = decoded_token['id']
+        answer_id = str(uuid.uuid4())  # Unique answer ID
+        timestamp = datetime.utcnow().isoformat()
+        questionnaire_id = data.get("questionnaire_id", "default_questionnaire")  # Default if not provided
 
-    return cors_enabled_response({'message': 'Answer submitted successfully'}, 201)
+        # 🔹 Store answer inside `user_data/{user_id}/answers/{answer_id}`
+        db.collection("user_data").document(user_id).collection("answers").document(answer_id).set({
+            "answer": data['answer'],
+            "question_id": data["question_id"],
+            "questionnaire_id": questionnaire_id,
+            "submitted_by": user_id,
+            "submitted_at": timestamp
+        })
+
+        return cors_enabled_response({'message': 'Answer submitted successfully', 'answer_id': answer_id}, 201)
+
+    except Exception as e:
+        print("Exception in /submit-answer:", e)
+        return cors_enabled_response({'message': 'Internal server error', 'error': str(e)}, 500)
 
 
+#UPDATED
 @main_bp.route('/session-details', methods=['GET'])
 def session_details():
-    "Fetch session details by session_id, with correct role-based access control."
-    decoded_token, error_response, status_code = validate_token()
-    if error_response:
-        return error_response
+    """Fetch session details by session_id, ensuring correct role-based access control."""
+    try:
+        decoded_token, error_response, status_code = validate_token()
+        if error_response:
+            return error_response
 
-    session_id = request.args.get('session_id')
-    if not session_id:
-        return cors_enabled_response({'message': 'Session ID is required'}, 400)
+        session_id = request.args.get('session_id')
+        if not session_id:
+            return cors_enabled_response({'message': 'Session ID is required'}, 400)
 
-    user_role = decoded_token.get('role')
-    user_id = decoded_token.get('id')
+        user_role = decoded_token.get('role')
+        user_id = decoded_token.get('id')
 
-    # Fetch all responses with the given session_id
-    responses_ref = db.collection('responses').where('session_id', '==', session_id).stream()
-    responses = []
-    mismatched_responses = []  # For debugging purposes
+        # 🔍 **Find user who owns this session (since sessions are now per-user)**
+        user_data_ref = db.collection("user_data")
+        session_owner_id = None
 
-    for r in responses_ref:
-        response_data = r.to_dict()
-        response_user_id = response_data.get('user_id')
+        # Search across all users for this session ID
+        for user_doc in user_data_ref.stream():
+            user_sessions_ref = user_doc.reference.collection("sessions").document(session_id)
+            if user_sessions_ref.get().exists:
+                session_owner_id = user_doc.id
+                break
 
-        # For client users, ensure that every response's user_id matches the logged-in client.
-        if user_role == "client":
-            if response_user_id != user_id:
-                mismatched_responses.append({ "doc_id": r.id, "user_id": response_user_id })
-                print(f"Unauthorized access: In session {session_id}, expected user_id {user_id} but found {response_user_id} in document {r.id}")
-                return cors_enabled_response({'message': 'Unauthorized: You cannot view another user\'s session.'}, 403)
-        # For clinicians, check that the client is assigned to them.
-        elif user_role == "clinician":
-            client_doc = db.collection('users').document(response_user_id).get()
+        if not session_owner_id:
+            return cors_enabled_response({'message': 'Session not found'}, 404)
+
+        # 🔒 **Enforce Role-Based Access Control**
+        if user_role == "client" and session_owner_id != user_id:
+            print(f"Unauthorized: Client {user_id} attempted to access session {session_id} (owned by {session_owner_id})")
+            return cors_enabled_response({'message': 'Unauthorized: You cannot view another user\'s session.'}, 403)
+
+        if user_role == "clinician":
+            client_doc = db.collection('users').document(session_owner_id).get()
             if client_doc.exists:
-                client_data = client_doc.to_dict()
-                assigned_clinician = client_data.get('assigned_clinician_id')
+                assigned_clinician = client_doc.to_dict().get('assigned_clinician_id')
                 if assigned_clinician != user_id:
-                    print(f"Unauthorized access: Clinician {user_id} is not assigned to client {response_user_id} (document {r.id}).")
+                    print(f"Unauthorized: Clinician {user_id} is not assigned to client {session_owner_id}")
                     return cors_enabled_response({'message': 'Unauthorized access to session'}, 403)
-        # Admins have unrestricted access
 
-        responses.append({
-            'question_id': response_data.get('question_id'),
-            'response_value': response_data.get('response_value'),
-            'timestamp': response_data.get('timestamp').isoformat() if response_data.get('timestamp') else None,
-        })
+        # 📥 **Fetch session responses**
+        session_responses_ref = db.collection("user_data").document(session_owner_id).collection("sessions").document(session_id).collection("responses").stream()
+        responses = [
+            {
+                'question_id': r.to_dict().get('question_id'),
+                'response_value': r.to_dict().get('response_value'),
+                'timestamp': r.to_dict().get('timestamp').isoformat() if r.to_dict().get('timestamp') else None,
+                'questionnaire_id': r.to_dict().get('questionnaire_id', "default_questionnaire")  # Default for backward compatibility
+            }
+            for r in session_responses_ref
+        ]
 
-    if not responses:
-        return cors_enabled_response({'message': 'No responses found for this session'}, 404)
+        if not responses:
+            return cors_enabled_response({'message': 'No responses found for this session'}, 404)
 
-    return cors_enabled_response(responses, 200)
+        return cors_enabled_response(responses, 200)
 
-""""
-@main_bp.route('/session-details', methods=['GET'])
-def session_details():
-    "Fetch session details by session_id, with correct role-based access control."
-    decoded_token, error_response, status_code = validate_token()
-    if error_response:
-        return error_response
+    except Exception as e:
+        print(f"Error fetching session details: {e}")
+        return cors_enabled_response({'message': 'Error retrieving session details'}, 500)
 
-    session_id = request.args.get('session_id')
-    if not session_id:
-        return cors_enabled_response({'message': 'Session ID is required'}, 400)
-
-    # No matter the role, simply fetch the responses.
-    responses_ref = db.collection('responses').where('session_id', '==', session_id).stream()
-    responses = []
-
-    for r in responses_ref:
-        response_data = r.to_dict()
-        responses.append({
-            'question_id': response_data.get('question_id'),
-            'response_value': response_data.get('response_value'),
-            'timestamp': response_data.get('timestamp').isoformat() if response_data.get('timestamp') else None,
-        })
-
-    if not responses:
-        return cors_enabled_response({'message': 'No responses found for this session'}, 404)
-
-    return cors_enabled_response(responses, 200)
-"""
 
 @main_bp.route('/search-users', methods=['GET'])
 def search_users():
@@ -630,6 +642,7 @@ def validate_invite():
 
     return cors_enabled_response({'message': 'Invite code valid', 'role': invite_data.get("role", "unknown")}, 200)
 
+
 @main_bp.route('/mark-invite-used', methods=['POST'])
 def mark_invite_used():
     """Mark an invite code as used."""
@@ -755,23 +768,23 @@ def get_admins():
     except Exception as e:
         return cors_enabled_response({"message": "Failed to fetch admins", "error": str(e)}, 500)
 
-
+#UPDATED
 @main_bp.route('/clinician-data', methods=['GET'])
 def get_clinician_data():
     """Fetch clinician data for analysis."""
-    decoded_token, error_response, status_code = validate_token()
-    if error_response:
-        return cors_enabled_response(error_response, status_code)
-
-    # ✅ Ensure only admins can access
-    if decoded_token.get('role') != 'admin':
-        return cors_enabled_response({'message': 'Unauthorized: Only admins can access this data'}, 403)
-
-    clinician_id = request.args.get('clinician_id')
-    if not clinician_id:
-        return cors_enabled_response({'message': 'Clinician ID is required'}, 400)
-
     try:
+        decoded_token, error_response, status_code = validate_token()
+        if error_response:
+            return cors_enabled_response(error_response, status_code)
+
+        # ✅ Ensure only admins can access
+        if decoded_token.get('role') != 'admin':
+            return cors_enabled_response({'message': 'Unauthorized: Only admins can access this data'}, 403)
+
+        clinician_id = request.args.get('clinician_id')
+        if not clinician_id:
+            return cors_enabled_response({'message': 'Clinician ID is required'}, 400)
+
         # 🔹 Get all clients assigned to this clinician
         clients_ref = db.collection('users').where('assigned_clinician_id', '==', clinician_id).stream()
         clients = [{**client.to_dict(), 'user_id': client.id} for client in clients_ref]
@@ -791,22 +804,19 @@ def get_clinician_data():
         def calculate_scores(client):
             """Calculate first & latest session scores for a client."""
             try:
-                responses = db.collection('responses').where('user_id', '==', client['user_id']).stream()
+                user_sessions_ref = db.collection('user_data').document(client['user_id']).collection('sessions').stream()
                 sessions = {}
 
-                for resp in responses:
-                    data = resp.to_dict()
-                    session_id = data.get('session_id')
-                    response_value = data.get('response_value')
-                    timestamp = data.get('timestamp')
+                for session_doc in user_sessions_ref:
+                    session_id = session_doc.id
+                    session_data = session_doc.reference.collection('responses').stream()
+                    responses = [resp.to_dict().get('response_value') for resp in session_data]
 
-                    if isinstance(timestamp, datetime) and timestamp.tzinfo is None:
-                        timestamp = timestamp.replace(tzinfo=timezone.utc)
-
-                    if session_id and response_value is not None and timestamp:
-                        if session_id not in sessions:
-                            sessions[session_id] = {'responses': [], 'timestamp': timestamp}
-                        sessions[session_id]['responses'].append(response_value)
+                    if responses:
+                        sessions[session_id] = {
+                            'responses': responses,
+                            'timestamp': session_doc.to_dict().get('timestamp')
+                        }
 
                 sorted_sessions = sorted(sessions.values(), key=lambda x: x['timestamp'])
 
@@ -827,7 +837,7 @@ def get_clinician_data():
 
         def is_recent(timestamp):
             six_months_ago = datetime.utcnow().replace(tzinfo=timezone.utc) - timedelta(days=182)
-            return timestamp >= six_months_ago
+            return timestamp and timestamp >= six_months_ago
 
         # 🔹 Compute Statistics
         improved, clinically_significant = 0, 0
@@ -842,8 +852,8 @@ def get_clinician_data():
                 if is_clinically_significant(initial, latest):
                     clinically_significant += 1
 
-                responses = db.collection('responses').where('user_id', '==', client['user_id']).stream()
-                has_recent_responses = any(is_recent(resp.to_dict()['timestamp']) for resp in responses)
+                user_sessions_ref = db.collection('user_data').document(client['user_id']).collection('sessions').stream()
+                has_recent_responses = any(is_recent(session.to_dict().get('timestamp')) for session in user_sessions_ref)
 
                 if has_recent_responses:
                     if latest < initial:
@@ -862,6 +872,7 @@ def get_clinician_data():
     except Exception as e:
         print(f"Error in /clinician-data: {e}")
         return cors_enabled_response({'message': 'Failed to fetch clinician data.', 'error': str(e)}, 500)
+
     
 @main_bp.route('/logout-device', methods=['POST'])
 def logout_device():

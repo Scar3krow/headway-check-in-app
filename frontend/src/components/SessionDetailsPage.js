@@ -7,7 +7,7 @@ import "../styles/sessiondetails.css"; // Specific styles for session details
 import "../styles/loading.css";
 import { API_URL } from "../config";
 import LoadingMessage from "../components/LoadingMessage";
-
+//UPDATED
 
 const SessionDetailsPage = () => {
   const { sessionId } = useParams();
@@ -43,16 +43,17 @@ const SessionDetailsPage = () => {
           return;
         }
 
-        // API Calls: Fetch Session Details & Questions (including Device-Token header)
-        const [sessionResponse, questionsResponse] = await Promise.all([
-          fetch(`${API_URL}/session-details?session_id=${sessionId}`, {
+        // ✅ Fetch Session Details from new user_data structure
+        const sessionRef = `${API_URL}/user-data/${userId}/sessions/${sessionId}/responses`;
+        const [sessionResponse, questionnaireResponse] = await Promise.all([
+          fetch(sessionRef, {
             headers: { 
               "Content-Type": "application/json", 
               Authorization: `Bearer ${token}`,
               "Device-Token": deviceToken,
             },
           }),
-          fetch(`${API_URL}/questions`, {
+          fetch(`${API_URL}/questionnaires`, {
             headers: { 
               "Content-Type": "application/json", 
               Authorization: `Bearer ${token}`,
@@ -61,29 +62,43 @@ const SessionDetailsPage = () => {
           }),
         ]);
 
-        // Handle Unauthorized Responses
-        if (sessionResponse.status === 401 || questionsResponse.status === 401) {
+        if (sessionResponse.status === 401 || questionnaireResponse.status === 401) {
           throw new Error("Unauthorized access. You may not have permission.");
         }
 
-        if (!sessionResponse.ok || !questionsResponse.ok) {
-          throw new Error("Failed to fetch data.");
+        if (!sessionResponse.ok || !questionnaireResponse.ok) {
+          throw new Error("Failed to fetch session data.");
         }
 
         const sessionData = await sessionResponse.json();
+        const questionnaires = await questionnaireResponse.json();
+
+        // ✅ Determine the questionnaire ID from responses
+        const questionnaireId = sessionData.length > 0 ? sessionData[0].questionnaire_id : null;
+        if (!questionnaireId) {
+          throw new Error("Questionnaire ID missing in session data.");
+        }
+
+        // ✅ Fetch questions for the specific questionnaire
+        const questionsResponse = await fetch(`${API_URL}/questions?questionnaire_id=${questionnaireId}`, {
+          headers: { 
+            "Content-Type": "application/json", 
+            Authorization: `Bearer ${token}`,
+            "Device-Token": deviceToken,
+          },
+        });
+
+        if (!questionsResponse.ok) {
+          throw new Error("Failed to fetch questions.");
+        }
+
         const questionsData = await questionsResponse.json();
 
-        // Removed extra check on each response's user_id.
-        // (We now simply assume that the data returned is correct.)
-        
-        // Build a question map for lookup.
+        // 📝 **Map Question IDs to Text**
         const qMap = questionsData.reduce((acc, question) => {
           acc[question.id] = question.text;
           return acc;
         }, {});
-
-        console.log("Fetched session data:", sessionData);
-        console.log("User ID:", userId);
 
         setSessionDetails(sessionData);
         setQuestionMap(qMap);

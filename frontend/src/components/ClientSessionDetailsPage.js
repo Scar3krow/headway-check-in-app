@@ -7,7 +7,7 @@ import "../styles/sessiondetails.css";
 import "../styles/loading.css";
 import { API_URL } from "../config";
 import LoadingMessage from "../components/LoadingMessage";
-
+//UPDATED
 
 const ClientSessionDetailsPage = () => {
     const { sessionId } = useParams();
@@ -43,7 +43,7 @@ const ClientSessionDetailsPage = () => {
                     return;
                 }
 
-                // 🔥 **Fetch Session Details & Questions**
+                // 🔥 **Fetch Session Details from `user_data` & Questions**
                 const [sessionResponse, questionsResponse] = await Promise.all([
                     fetch(`${API_URL}/session-details?session_id=${sessionId}`, {
                         headers: {
@@ -60,11 +60,6 @@ const ClientSessionDetailsPage = () => {
                         },
                     }),
                 ]);
-
-                // 🔒 Handle Unauthorized Errors
-                if (sessionResponse.status === 401 || questionsResponse.status === 401) {
-                    throw new Error("Unauthorized access.");
-                }
 
                 if (!sessionResponse.ok || !questionsResponse.ok) {
                     throw new Error("Failed to fetch data.");

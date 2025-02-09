@@ -7,6 +7,7 @@ import "../styles/loading.css";
 import ClinicianGraph from "./ClinicianGraph";
 import { API_URL } from "../config";
 import LoadingMessage from "../components/LoadingMessage";
+//UPDATED
 
 const ClientResultsPage = () => {
     const { userId } = useParams();
@@ -45,7 +46,7 @@ const ClientResultsPage = () => {
                 const userInfo = await userInfoResponse.json();
                 setClientName(`${userInfo.first_name} ${userInfo.last_name}`);
 
-                // Fetch past responses
+                // Fetch past responses from `user_data`
                 const responsesResponse = await fetch(`${API_URL}/past-responses?user_id=${userId}`, {
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -77,22 +78,25 @@ const ClientResultsPage = () => {
     }, [userId, navigate]);
 
     const formatResponsesTable = (data) => {
-        const sessions = data.reduce((acc, response) => {
-            const { session_id, question_id, response_value, timestamp } = response;
+        const sessions = {};
 
-            if (!acc[session_id]) {
-                acc[session_id] = {
+        data.forEach((session) => {
+            const { session_id, timestamp, responses } = session;
+            if (!sessions[session_id]) {
+                sessions[session_id] = {
                     date: new Date(timestamp),
                     responses: {},
                 };
             }
-            acc[session_id].responses[question_id] = response_value;
-            return acc;
-        }, {});
+            responses.forEach(({ question_id, response_value }) => {
+                sessions[session_id].responses[question_id] = response_value;
+            });
+        });
 
         const sortedSessionIds = Object.keys(sessions).sort((a, b) => sessions[a].date - sessions[b].date);
 
-        const tableRows = Object.keys(data[0]?.responses || {}).map((questionId) => ({
+        const questionIds = Object.keys(data[0]?.responses || {});
+        const tableRows = questionIds.map((questionId) => ({
             questionText: `Question ${questionId}`,
             responses: sortedSessionIds.map(
                 (sessionId) => sessions[sessionId]?.responses[questionId] || "-"

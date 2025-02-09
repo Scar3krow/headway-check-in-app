@@ -8,7 +8,7 @@ import "../styles/responsespage.css";
 import "../styles/loading.css";
 import { API_URL } from "../config";
 import LoadingMessage from "../components/LoadingMessage";
-
+//UPDATED
 
 const ClientResponsesPage = () => {
     const [responsesTable, setResponsesTable] = useState({ rows: [], sessionDates: [], sessionIds: [] });
@@ -24,22 +24,22 @@ const ClientResponsesPage = () => {
                 const token = localStorage.getItem("token");
                 const deviceToken = localStorage.getItem("device_token");
                 const userId = localStorage.getItem("user_id");
-    
+
                 if (!token || !deviceToken || !userId) {
                     setErrorMessage("Session expired. Please log in again.");
                     navigate("/login");
                     return;
                 }
-    
+
                 const response = await fetch(`${API_URL}/past-responses?user_id=${userId}`, {
                     headers: {
                         Authorization: `Bearer ${token}`,
                         "Device-Token": deviceToken,
                     },
                 });
-    
+
                 const responseData = await response.json();
-    
+
                 if (response.ok) {
                     if (responseData.message === "No responses available for this user") {
                         setGraphData(null);
@@ -57,29 +57,32 @@ const ClientResponsesPage = () => {
                 setIsLoading(false); // ✅ End loading after the request completes
             }
         };
-    
+
         fetchResponses();
     }, [navigate]);
 
     const formatResponsesTable = (data) => {
-        const sessions = data.reduce((acc, response) => {
-            const { session_id, question_id, response_value, timestamp } = response;
+        const sessions = {};
 
-            if (!acc[session_id]) {
-                acc[session_id] = {
+        data.forEach((session) => {
+            const { session_id, timestamp, responses } = session;
+            if (!sessions[session_id]) {
+                sessions[session_id] = {
                     date: new Date(timestamp),
                     responses: {},
                 };
             }
-            acc[session_id].responses[question_id] = response_value;
-            return acc;
-        }, {});
+            responses.forEach(({ question_id, response_value }) => {
+                sessions[session_id].responses[question_id] = response_value;
+            });
+        });
 
         const sortedSessionIds = Object.keys(sessions).sort(
             (a, b) => sessions[a].date - sessions[b].date
         );
 
-        const tableRows = Object.keys(data[0]?.responses || {}).map((questionId) => ({
+        const questionIds = Object.keys(data[0]?.responses || {});
+        const tableRows = questionIds.map((questionId) => ({
             questionText: `Question ${questionId}`,
             responses: sortedSessionIds.map(
                 (sessionId) => sessions[sessionId]?.responses[questionId] || "-"
@@ -167,7 +170,7 @@ const ClientResponsesPage = () => {
         <div className="responses-page-container">
             <h2 className="responses-title">Your Responses</h2>
             {errorMessage && <p className="error-message">{errorMessage}</p>}
-    
+
             {isLoading ? (
                 <LoadingMessage text="Fetching responses..." /> // ✅ Show loading message
             ) : responsesTable.rows.length === 0 && !graphData ? (
@@ -182,7 +185,7 @@ const ClientResponsesPage = () => {
                     )}
                 </>
             )}
-    
+
             {!isLoading && (
                 <div className="form-actions">
                     <button onClick={() => navigate("/client-dashboard")} className="dashboard-button secondary">
@@ -193,7 +196,7 @@ const ClientResponsesPage = () => {
                     </button>
                 </div>
             )}
-    
+
             {!isLoading && graphData && (
                 <p className="data-point-instructions">
                     Click on a data point to see answers for each question.

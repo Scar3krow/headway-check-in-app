@@ -5,15 +5,18 @@ import "../styles/questionnaire.css";
 import "../styles/dashboard.css";
 import { API_URL } from "../config";
 import LoadingMessage from "../components/LoadingMessage";
+//UPDATED
 
 const QuestionnairePage = () => {
     const [questionnaires, setQuestionnaires] = useState([]);
-    const [selectedQuestionnaire, setSelectedQuestionnaire] = useState("default_questionnaire"); // Hard coded fixed ID for the primary questionnaire, update if going to multiple questionnaires.
+    const [selectedQuestionnaire, setSelectedQuestionnaire] = useState("default_questionnaire");
     const [questions, setQuestions] = useState([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [responses, setResponses] = useState({});
     const [isLoading, setIsLoading] = useState(true);
     const navigate = useNavigate();
+
+    const userId = localStorage.getItem("user_id");
 
     // 🔹 Fetch available questionnaires
     useEffect(() => {
@@ -89,7 +92,11 @@ const QuestionnairePage = () => {
         const token = localStorage.getItem("token");
         const deviceToken = localStorage.getItem("device_token");
 
+        const sessionId = `session_${Date.now()}`; // Generate unique session ID
+
         const payload = {
+            session_id: sessionId,
+            questionnaire_id: selectedQuestionnaire,
             responses: Object.keys(responses).map((questionId) => ({
                 question_id: questionId,
                 response_value: responses[questionId],
@@ -97,7 +104,7 @@ const QuestionnairePage = () => {
         };
 
         try {
-            const response = await fetch(`${API_URL}/submit-responses`, {
+            const response = await fetch(`${API_URL}/user-data/${userId}/sessions/${sessionId}/responses`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -225,9 +232,6 @@ const QuestionnairePage = () => {
                         )}
                     </>
                 )}
-                <button className="back-btn" onClick={() => navigate("/client-dashboard")}>
-                    Back
-                </button>
             </div>
         </div>
     );

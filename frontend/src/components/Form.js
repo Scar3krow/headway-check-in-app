@@ -2,21 +2,57 @@ import React, { useState, useEffect } from "react";
 import "../styles/global.css"; // Consolidated global styles
 import "../styles/forms.css"; // Form-specific styles
 import { API_URL } from "../config";
+//UPDATED
 
 const Form = () => {
     const [questions, setQuestions] = useState([]);
     const [responses, setResponses] = useState({});
     const [message, setMessage] = useState("");
     const [loading, setLoading] = useState(true);
+    const [questionnaireId, setQuestionnaireId] = useState(null); // ✅ Store questionnaire ID
 
     useEffect(() => {
         const fetchQuestions = async () => {
             try {
                 const token = localStorage.getItem("token");
-                const response = await fetch(`${API_URL}/questions`, {
+                const deviceToken = localStorage.getItem("device_token");
+                const userId = localStorage.getItem("user_id");
+
+                if (!token || !deviceToken || !userId) {
+                    setMessage("Session expired. Please log in again.");
+                    return;
+                }
+
+                // ✅ Fetch the default questionnaire
+                const questionnaireResponse = await fetch(`${API_URL}/questionnaires`, {
                     headers: {
                         "Authorization": `Bearer ${token}`,
-                        "Device-Token": localStorage.getItem("device_token"), // 🔐 Secure API Request
+                        "Device-Token": deviceToken,
+                        "Content-Type": "application/json",
+                    },
+                });
+
+                if (!questionnaireResponse.ok) {
+                    throw new Error("Failed to fetch questionnaire.");
+                }
+
+                const questionnaires = await questionnaireResponse.json();
+                if (questionnaires.length === 0) {
+                    throw new Error("No questionnaire found.");
+                }
+
+                const selectedQuestionnaire = questionnaires.find(q => q.name === "Standard Check-In");
+                if (!selectedQuestionnaire) {
+                    throw new Error("Default questionnaire not found.");
+                }
+
+                setQuestionnaireId(selectedQuestionnaire.id);
+
+                // ✅ Fetch questions linked to the selected questionnaire
+                const response = await fetch(`${API_URL}/questions?questionnaire_id=${selectedQuestionnaire.id}`, {
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Device-Token": deviceToken,
                         "Content-Type": "application/json",
                     },
                 });
@@ -47,8 +83,20 @@ const Form = () => {
         setMessage(""); // Reset message before submission
 
         const token = localStorage.getItem("token");
+        const deviceToken = localStorage.getItem("device_token");
+        const userId = localStorage.getItem("user_id");
+
+        if (!questionnaireId) {
+            setMessage("Error: No questionnaire selected.");
+            return;
+        }
+
+        const sessionId = Date.now().toString(); // ✅ Generate a session ID
 
         const payload = {
+            user_id: userId,
+            session_id: sessionId,
+            questionnaire_id: questionnaireId,
             responses: Object.keys(responses).map((questionId) => ({
                 question_id: questionId,
                 response_value: responses[questionId],
@@ -61,7 +109,7 @@ const Form = () => {
                 headers: {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token}`,
-                    "Device-Token": localStorage.getItem("device_token"), // 🔐 Secure API Request
+                    "Device-Token": deviceToken,
                 },
                 body: JSON.stringify(payload),
             });
@@ -95,7 +143,7 @@ const Form = () => {
                             <input
                                 type="number"
                                 min="1"
-                                max="7"
+                                max="5"
                                 value={responses[q.id] || ""}
                                 onChange={(e) => handleResponseChange(q.id, parseInt(e.target.value))}
                                 className="form-input"
