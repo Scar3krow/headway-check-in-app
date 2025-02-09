@@ -319,10 +319,9 @@ def store_user_responses(user_id, session_id):
         return cors_enabled_response({'message': 'Internal server error', 'error': str(e)}, 500)
 
 
-#UPDATED
 @main_bp.route('/past-responses', methods=['GET'])
 def past_responses():
-    """Fetch past responses for a user from `user_data/{user_id}/check_ins`."""
+    """Fetch past responses for a user from `user_data/{user_id}/sessions`."""
     decoded_token, error_response, status_code = validate_token()
     if error_response:
         return cors_enabled_response(error_response, status_code)
@@ -357,23 +356,23 @@ def past_responses():
         else:
             return cors_enabled_response({'message': 'Unauthorized: Invalid role'}, 403)
 
-        # 📥 **Fetch check-ins for the given user_id**
-        checkins_ref = db.collection('user_data').document(query_user_id).collection('check_ins')
+        # 📥 **Fetch sessions (previously check-ins) for the given user_id**
+        sessions_ref = db.collection('user_data').document(query_user_id).collection('sessions')
 
         # Apply questionnaire filter if provided
         if questionnaire_id:
-            checkins_ref = checkins_ref.where("questionnaire_id", "==", questionnaire_id)
+            sessions_ref = sessions_ref.where("questionnaire_id", "==", questionnaire_id)
 
-        checkins = checkins_ref.stream()
+        sessions = sessions_ref.stream()
 
         responses_list = []
-        for checkin in checkins:
-            checkin_data = checkin.to_dict()
+        for session in sessions:
+            session_data = session.to_dict()
             responses_list.append({
-                "checkin_id": checkin.id,
-                "timestamp": checkin_data["timestamp"],
-                "questionnaire_id": checkin_data["questionnaire_id"],
-                "responses": checkin_data["responses"]
+                "session_id": session.id,
+                "timestamp": session_data.get("timestamp"),
+                "questionnaire_id": session_data.get("questionnaire_id"),
+                "responses": session_data.get("responses")
             })
 
         if not responses_list:
@@ -383,7 +382,8 @@ def past_responses():
 
     except Exception as e:
         print(f"Error fetching past responses: {e}")
-        return cors_enabled_response({'message': 'Error retrieving past responses'}, 500)
+        return cors_enabled_response({'message': 'Error retrieving past responses', 'error': str(e)}, 500)
+
 """
 #UPDATED
 @main_bp.route('/submit-answer', methods=['POST'])
