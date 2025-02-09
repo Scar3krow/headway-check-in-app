@@ -368,22 +368,27 @@ def past_responses():
         responses_list = []
         for session in sessions:
             session_data = session.to_dict()
-            print(f"🔥 DEBUG - Fetched session {session.id}: {session_data}")  # Debugging print
-
-            # ✅ Ensure responses are properly extracted
+            session_id = session.id
+            timestamp = session_data.get("timestamp")
+            questionnaire_id = session_data.get("questionnaire_id")
+            
+            # ✅ Ensure responses are correctly extracted as a dictionary
             responses = session_data.get("responses", {})
 
-            # 🔍 Debugging: Check if responses exist but are returning as null
-            if responses is None:
-                print(f"⚠️ WARNING: Responses for session {session.id} are NULL in Firestore!")
-            elif isinstance(responses, dict) and not responses:
-                print(f"⚠️ WARNING: Responses for session {session.id} exist but are EMPTY!")
+            # 🔥 **Fix: Explicitly convert Firestore document fields into proper dictionary**
+            if isinstance(responses, dict):
+                extracted_responses = {str(k): v for k, v in responses.items()}
+            else:
+                extracted_responses = {}
+
+            # 🔍 Debugging
+            print(f"🔥 DEBUG - Session {session_id} - Extracted Responses: {extracted_responses}")
 
             responses_list.append({
-                "session_id": session.id,
-                "timestamp": session_data.get("timestamp"),
-                "questionnaire_id": session_data.get("questionnaire_id"),
-                "responses": responses  # Should be a dictionary
+                "session_id": session_id,
+                "timestamp": timestamp,
+                "questionnaire_id": questionnaire_id,
+                "responses": extracted_responses  # Ensured dictionary format
             })
 
         if not responses_list:
@@ -394,6 +399,7 @@ def past_responses():
     except Exception as e:
         print(f"❌ ERROR fetching past responses: {e}")
         return cors_enabled_response({'message': 'Error retrieving past responses'}, 500)
+
 
 #UPDATED
 @main_bp.route('/session-details', methods=['GET'])
