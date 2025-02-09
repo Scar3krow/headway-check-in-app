@@ -8,7 +8,6 @@ import "../styles/responsespage.css";
 import "../styles/loading.css";
 import { API_URL } from "../config";
 import LoadingMessage from "../components/LoadingMessage";
-//UPDATED
 
 const ClientResponsesPage = () => {
     const [responsesTable, setResponsesTable] = useState({ rows: [], sessionDates: [], sessionIds: [] });
@@ -19,7 +18,7 @@ const ClientResponsesPage = () => {
 
     useEffect(() => {
         const fetchResponses = async () => {
-            setIsLoading(true); // ✅ Start loading before the request
+            setIsLoading(true);
             try {
                 const token = localStorage.getItem("token");
                 const deviceToken = localStorage.getItem("device_token");
@@ -54,7 +53,7 @@ const ClientResponsesPage = () => {
                 console.error("Error fetching responses:", error);
                 setErrorMessage("Error fetching responses. Please try again later.");
             } finally {
-                setIsLoading(false); // ✅ End loading after the request completes
+                setIsLoading(false);
             }
         };
 
@@ -66,24 +65,28 @@ const ClientResponsesPage = () => {
 
         data.forEach((session) => {
             const { session_id, timestamp, responses } = session;
-            if (!sessions[session_id]) {
-                sessions[session_id] = {
-                    date: new Date(timestamp),
-                    responses: {},
-                };
-            }
-            responses.forEach(({ question_id, response_value }) => {
-                sessions[session_id].responses[question_id] = response_value;
-            });
+            sessions[session_id] = {
+                date: new Date(timestamp),
+                responses: responses || {}, // Ensure it's always an object
+            };
         });
 
+        // ✅ Sort session IDs by timestamp
         const sortedSessionIds = Object.keys(sessions).sort(
             (a, b) => sessions[a].date - sessions[b].date
         );
 
-        const questionIds = Object.keys(data[0]?.responses || {});
-        const tableRows = questionIds.map((questionId) => ({
-            questionText: `Question ${questionId}`,
+        // ✅ Extract unique question IDs safely
+        const allQuestionIds = new Set();
+        data.forEach(session => {
+            if (session.responses) {
+                Object.keys(session.responses).forEach(qid => allQuestionIds.add(qid));
+            }
+        });
+
+        // ✅ Format data into rows with question text & responses
+        const tableRows = [...allQuestionIds].map((questionId) => ({
+            questionText: `Question ${questionId}`, // Placeholder, update if mapping exists
             responses: sortedSessionIds.map(
                 (sessionId) => sessions[sessionId]?.responses[questionId] || "-"
             ),
@@ -172,7 +175,7 @@ const ClientResponsesPage = () => {
             {errorMessage && <p className="error-message">{errorMessage}</p>}
 
             {isLoading ? (
-                <LoadingMessage text="Fetching responses..." /> // ✅ Show loading message
+                <LoadingMessage text="Fetching responses..." />
             ) : responsesTable.rows.length === 0 && !graphData ? (
                 <p className="no-data-message">No responses available to display.</p>
             ) : (
