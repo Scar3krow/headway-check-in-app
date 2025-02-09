@@ -2,6 +2,17 @@ from google.cloud import firestore
 from werkzeug.security import generate_password_hash
 import uuid
 from datetime import datetime
+import firebase_admin
+from firebase_admin import credentials, firestore
+import os
+
+# ✅ Check if Firebase is already initialized to avoid re-initialization errors
+if not firebase_admin._apps:
+    # ✅ Load Firebase credentials from environment variables (or use local JSON file)
+    FIREBASE_CREDENTIALS_PATH = os.getenv("FIREBASE_CREDENTIALS_PATH", "firebase_service_account.json")
+    
+    cred = credentials.Certificate(FIREBASE_CREDENTIALS_PATH)
+    firebase_admin.initialize_app(cred)
 
 def initialize_firestore():
     """
