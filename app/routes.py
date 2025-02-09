@@ -356,7 +356,7 @@ def past_responses():
         else:
             return cors_enabled_response({'message': 'Unauthorized: Invalid role'}, 403)
 
-        # 📥 **Fetch sessions (previously check-ins) for the given user_id**
+        # 📥 **Fetch session data for the user**
         sessions_ref = db.collection('user_data').document(query_user_id).collection('sessions')
 
         # Apply questionnaire filter if provided
@@ -368,11 +368,22 @@ def past_responses():
         responses_list = []
         for session in sessions:
             session_data = session.to_dict()
+            print(f"🔥 DEBUG - Fetched session {session.id}: {session_data}")  # Debugging print
+
+            # ✅ Ensure responses are properly extracted
+            responses = session_data.get("responses", {})
+
+            # 🔍 Debugging: Check if responses exist but are returning as null
+            if responses is None:
+                print(f"⚠️ WARNING: Responses for session {session.id} are NULL in Firestore!")
+            elif isinstance(responses, dict) and not responses:
+                print(f"⚠️ WARNING: Responses for session {session.id} exist but are EMPTY!")
+
             responses_list.append({
                 "session_id": session.id,
                 "timestamp": session_data.get("timestamp"),
                 "questionnaire_id": session_data.get("questionnaire_id"),
-                "responses": session_data.get("responses")
+                "responses": responses  # Should be a dictionary
             })
 
         if not responses_list:
@@ -381,43 +392,8 @@ def past_responses():
         return cors_enabled_response(responses_list, 200)
 
     except Exception as e:
-        print(f"Error fetching past responses: {e}")
-        return cors_enabled_response({'message': 'Error retrieving past responses', 'error': str(e)}, 500)
-
-"""
-#UPDATED
-@main_bp.route('/submit-answer', methods=['POST'])
-def submit_answer():
-    ""Submit an answer to Firestore under `user_data/{user_id}/answers/{answer_id}`.""
-    try:
-        decoded_token, error_response, status_code = validate_token()
-        if error_response:
-            return cors_enabled_response(error_response, status_code)
-
-        data = request.get_json()
-        if not data or 'answer' not in data or 'question_id' not in data:
-            return cors_enabled_response({'message': 'Invalid payload. "answer" and "question_id" are required.'}, 400)
-
-        user_id = decoded_token['id']
-        answer_id = str(uuid.uuid4())  # Unique answer ID
-        timestamp = datetime.utcnow().isoformat()
-        questionnaire_id = data.get("questionnaire_id", "default_questionnaire")  # Default if not provided
-
-        # 🔹 Store answer inside `user_data/{user_id}/answers/{answer_id}`
-        db.collection("user_data").document(user_id).collection("answers").document(answer_id).set({
-            "answer": data['answer'],
-            "question_id": data["question_id"],
-            "questionnaire_id": questionnaire_id,
-            "submitted_by": user_id,
-            "submitted_at": timestamp
-        })
-
-        return cors_enabled_response({'message': 'Answer submitted successfully', 'answer_id': answer_id}, 201)
-
-    except Exception as e:
-        print("Exception in /submit-answer:", e)
-        return cors_enabled_response({'message': 'Internal server error', 'error': str(e)}, 500)
-"""
+        print(f"❌ ERROR fetching past responses: {e}")
+        return cors_enabled_response({'message': 'Error retrieving past responses'}, 500)
 
 #UPDATED
 @main_bp.route('/session-details', methods=['GET'])
