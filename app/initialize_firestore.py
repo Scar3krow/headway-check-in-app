@@ -99,36 +99,75 @@ def initialize_firestore():
     else:
         print("Default client(s) already exist.")
 
+from firebase_admin import firestore
+
+# Initialize Firestore
+db = firestore.client()
+
+# -----------------------------
+# QUESTIONNAIRES COLLECTION INITIALIZATION
+# -----------------------------
+questionnaires_ref = db.collection("questionnaires")
+default_questionnaire_id = "default_questionnaire"  # Hard coded fixed ID for the primary questionnaire, update if going to multiple questionnaires.
+
+# Check if default questionnaire exists
+questionnaire_doc = questionnaires_ref.document(default_questionnaire_id).get()
+if not questionnaire_doc.exists:
+    print("Creating default questionnaire...")
+    questionnaires_ref.document(default_questionnaire_id).set({
+        "id": default_questionnaire_id,
+        "name": "Standard Check-In",
+    })
+    print("Default questionnaire created.")
+else:
+    print("Default questionnaire already exists.")
+
+# -----------------------------
+# INITIALIZE QUESTIONNAIRES COLLECTION
+# -----------------------------
+questionnaires_ref = db.collection("questionnaires")
+existing_questionnaires = list(questionnaires_ref.stream())
+
+# Ensure "default_questionnaire" exists
+if not any(q.id == "default_questionnaire" for q in existing_questionnaires):
+    questionnaires_ref.document("default_questionnaire").set({
+        "id": "default_questionnaire",
+        "name": "Standard Check-In"
+    })
+    print("Added default questionnaire.")
+
     # -----------------------------
-    # QUESTIONS COLLECTION INITIALIZATION
+    # UPDATE QUESTIONS COLLECTION TO INCLUDE questionnaire_id
     # -----------------------------
     questions_ref = db.collection("questions")
     existing_questions = list(questions_ref.stream())
 
     default_questions = [
-        {"text": "I have felt tense, anxious, or nervous."},
-        {"text": "I have felt I have someone to turn to for support when needed."},
-        {"text": "I have felt able to cope when things go wrong."},
-        {"text": "Talking to people has felt too much for me."},
-        {"text": "I have felt panic or terror."},
-        {"text": "I made plans to end my life."},
-        {"text": "I have had difficulty getting to sleep or staying asleep."},
-        {"text": "I have felt despairing or helpless."},
-        {"text": "I have felt unhappy."},
-        {"text": "Unwanted images or memories have been distressing me."},
+        {"text": "I have felt tense, anxious, or nervous.", "questionnaire_id": "default_questionnaire"},
+        {"text": "I have felt I have someone to turn to for support when needed.", "questionnaire_id": "default_questionnaire"},
+        {"text": "I have felt able to cope when things go wrong.", "questionnaire_id": "default_questionnaire"},
+        {"text": "Talking to people has felt too much for me.", "questionnaire_id": "default_questionnaire"},
+        {"text": "I have felt panic or terror.", "questionnaire_id": "default_questionnaire"},
+        {"text": "I made plans to end my life.", "questionnaire_id": "default_questionnaire"},
+        {"text": "I have had difficulty getting to sleep or staying asleep.", "questionnaire_id": "default_questionnaire"},
+        {"text": "I have felt despairing or helpless.", "questionnaire_id": "default_questionnaire"},
+        {"text": "I have felt unhappy.", "questionnaire_id": "default_questionnaire"},
+        {"text": "Unwanted images or memories have been distressing me.", "questionnaire_id": "default_questionnaire"},
     ]
 
-    if len(existing_questions) < len(default_questions):
-        print("Updating questions collection...")
-        # Delete existing questions
-        for question in existing_questions:
-            questions_ref.document(question.id).delete()
-        # Add default questions
-        for question in default_questions:
+    # Update existing questions with questionnaire_id
+    for question in existing_questions:
+        questions_ref.document(question.id).update({"questionnaire_id": "default_questionnaire"})
+
+    print("Questions updated with questionnaire_id.")
+
+    # Add missing questions if needed
+    existing_question_texts = [q.to_dict()["text"] for q in existing_questions]
+    for question in default_questions:
+        if question["text"] not in existing_question_texts:
             questions_ref.add(question)
-        print("Questions collection has been updated.")
-    else:
-        print("Questions collection already initialized.")
+
+    print("Questions collection has been updated.")
 
     # -----------------------------
     # INVITES COLLECTION INITIALIZATION

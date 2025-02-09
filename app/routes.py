@@ -239,13 +239,30 @@ def login():
 
 @main_bp.route('/questions', methods=['GET'])
 def get_questions():
-    """Fetch all questions."""
+    """Fetch questions based on questionnaire_id."""
+    questionnaire_id = request.args.get('questionnaire_id', 'default_questionnaire') # Hard coded fixed ID for the primary questionnaire, update if going to multiple questionnaires.
+
     try:
-        questions_ref = db.collection('questions').stream()
-        questions = [{'id': q.id, 'text': q.to_dict().get('text')} for q in questions_ref]
+        # ✅ Fetch questions linked to this questionnaire
+        questions_ref = db.collection('questions').where('questionnaire_id', '==', questionnaire_id).stream()
+        questions = [{"id": q.id, "text": q.to_dict().get("text", "")} for q in questions_ref]
+
         return cors_enabled_response(questions, 200)
     except Exception as e:
+        print(f"Error fetching questions: {e}")
         return cors_enabled_response({'message': 'Failed to fetch questions', 'error': str(e)}, 500)
+    
+@main_bp.route('/questionnaires', methods=['GET'])
+def get_questionnaires():
+    """Fetch all available questionnaires."""
+    try:
+        questionnaires_ref = db.collection('questionnaires').stream()
+        questionnaires = [{"id": q.id, "name": q.to_dict().get("name", "Unnamed Questionnaire")} for q in questionnaires_ref]
+
+        return cors_enabled_response(questionnaires, 200)
+    except Exception as e:
+        print(f"Error fetching questionnaires: {e}")
+        return cors_enabled_response({'message': 'Failed to fetch questionnaires', 'error': str(e)}, 500)
 
 
 @main_bp.route('/submit-responses', methods=['POST'])

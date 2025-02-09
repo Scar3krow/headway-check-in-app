@@ -7,19 +7,44 @@ import { API_URL } from "../config";
 import LoadingMessage from "../components/LoadingMessage";
 
 const QuestionnairePage = () => {
+    const [questionnaires, setQuestionnaires] = useState([]);
+    const [selectedQuestionnaire, setSelectedQuestionnaire] = useState("default_questionnaire"); // Hard coded fixed ID for the primary questionnaire, update if going to multiple questionnaires.
     const [questions, setQuestions] = useState([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [responses, setResponses] = useState({});
     const [isLoading, setIsLoading] = useState(true);
     const navigate = useNavigate();
 
+    // 🔹 Fetch available questionnaires
+    useEffect(() => {
+        const fetchQuestionnaires = async () => {
+            try {
+                const token = localStorage.getItem("token");
+
+                const response = await fetch(`${API_URL}/questionnaires`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+
+                if (!response.ok) throw new Error("Failed to fetch questionnaires");
+
+                const data = await response.json();
+                setQuestionnaires(data);
+            } catch (error) {
+                console.error("Error fetching questionnaires:", error);
+            }
+        };
+
+        fetchQuestionnaires();
+    }, []);
+
+    // 🔹 Fetch questions for the selected questionnaire
     useEffect(() => {
         const fetchQuestions = async () => {
             try {
                 const token = localStorage.getItem("token");
                 const deviceToken = localStorage.getItem("device_token");
 
-                const response = await fetch(`${API_URL}/questions`, {
+                const response = await fetch(`${API_URL}/questions?questionnaire_id=${selectedQuestionnaire}`, {
                     headers: {
                         Authorization: `Bearer ${token}`,
                         "Device-Token": deviceToken,
@@ -30,6 +55,8 @@ const QuestionnairePage = () => {
                 
                 const data = await response.json();
                 setQuestions(data);
+                setResponses({}); // Reset responses when changing questionnaires
+                setCurrentIndex(0); // Reset index when changing questionnaires
             } catch (error) {
                 console.error("Error fetching questions:", error);
             } finally {
@@ -37,8 +64,10 @@ const QuestionnairePage = () => {
             }
         };
 
-        fetchQuestions();
-    }, []);
+        if (selectedQuestionnaire) {
+            fetchQuestions();
+        }
+    }, [selectedQuestionnaire]);
 
     const handleAnswerSelect = (questionId, value) => {
         setResponses({ ...responses, [questionId]: value });
@@ -91,7 +120,23 @@ const QuestionnairePage = () => {
     return (
         <div className="questionnaire-container">
             {isLoading ? <LoadingMessage text="Loading questionnaire..." /> : null}
-    
+
+            {/* 🔹 Questionnaire Selection */}
+            <div className="questionnaire-selection">
+                <label>Select a Questionnaire:</label>
+                <select
+                    value={selectedQuestionnaire}
+                    onChange={(e) => setSelectedQuestionnaire(e.target.value)}
+                    className="form-select"
+                >
+                    {questionnaires.map((q) => (
+                        <option key={q.id} value={q.id}>
+                            {q.name}
+                        </option>
+                    ))}
+                </select>
+            </div>
+
             {/* ✅ Desktop Questionnaire */}
             <div className="desktop-questionnaire">
                 <h2 className="questionnaire-title">Check-In</h2>
@@ -126,7 +171,6 @@ const QuestionnairePage = () => {
                     ))}
                 </form>
                 <div className="form-buttons">
-                    {/* ✅ Back Button in Desktop */}
                     <button type="button" className="back-btn" onClick={() => navigate("/client-dashboard")}>
                         ⬅ Back
                     </button>
@@ -140,7 +184,7 @@ const QuestionnairePage = () => {
                     </button>
                 </div>
             </div>
-    
+
             {/* ✅ Mobile Questionnaire */}
             <div className="mobile-questionnaire-container">
                 <h2 className="questionnaire-title">Check-In</h2>
@@ -168,10 +212,10 @@ const QuestionnairePage = () => {
                         </div>
                         <div className="navigation-buttons">
                             <button className="nav-btn themed-nav-btn" onClick={handlePrevious} disabled={currentIndex === 0}>
-                                ⬅
+                                Previous
                             </button>
                             <button className="nav-btn themed-nav-btn" onClick={handleNext} disabled={currentIndex === questions.length - 1}>
-                                ➡
+                                Next
                             </button>
                         </div>
                         {currentIndex === questions.length - 1 && (
@@ -181,7 +225,6 @@ const QuestionnairePage = () => {
                         )}
                     </>
                 )}
-                {/* ✅ Back Button for Mobile */}
                 <button className="back-btn" onClick={() => navigate("/client-dashboard")}>
                     Back
                 </button>
