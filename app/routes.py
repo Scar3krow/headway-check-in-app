@@ -320,54 +320,6 @@ def store_user_responses(user_id, session_id):
 
 
 #UPDATED
-@main_bp.route('/submit-responses', methods=['POST'])
-def submit_responses():
-    """Submit responses to Firestore under `user_data/{user_id}/sessions/{session_id}/responses`."""
-    try:
-        decoded_token, error_response, status_code = validate_token()
-        if error_response:
-            return cors_enabled_response(error_response, status_code)
-
-        data = request.get_json()
-        if not data or 'responses' not in data or not isinstance(data['responses'], list):
-            return cors_enabled_response({'message': '"responses" must be a list.'}, 400)
-
-        user_id = decoded_token['id']
-        session_id = f"session_{int(datetime.utcnow().timestamp() * 1000)}"  # Generate a timestamp-based session ID
-        timestamp = datetime.utcnow().isoformat()
-        questionnaire_id = data.get("questionnaire_id", "default_questionnaire")  # Default if not provided
-
-        # Ensure all responses have the required fields
-        for response in data['responses']:
-            if 'question_id' not in response or 'response_value' not in response:
-                return cors_enabled_response({'message': 'Each response must have "question_id" and "response_value".'}, 400)
-
-        # 🔹 Store the session document inside `user_data/{user_id}/sessions/{session_id}`
-        session_ref = db.collection("user_data").document(user_id).collection("sessions").document(session_id)
-        session_ref.set({
-            "questionnaire_id": questionnaire_id,
-            "timestamp": timestamp
-        })
-
-        # 🔹 Store each response inside `user_data/{user_id}/sessions/{session_id}/responses`
-        responses_ref = session_ref.collection("responses")
-        for response in data['responses']:
-            response_doc_id = f"response_{response['question_id']}"
-            responses_ref.document(response_doc_id).set({
-                "questionnaire_id": questionnaire_id,
-                "question_id": response["question_id"],
-                "response_value": response["response_value"],
-                "timestamp": timestamp
-            })
-
-        return cors_enabled_response({'message': 'Responses submitted successfully', 'session_id': session_id}, 201)
-
-    except Exception as e:
-        print("Exception in /submit-responses:", e)
-        return cors_enabled_response({'message': 'Internal server error', 'error': str(e)}, 500)
-
-
-#UPDATED
 @main_bp.route('/past-responses', methods=['GET'])
 def past_responses():
     """Fetch past responses for a user from `user_data/{user_id}/check_ins`."""
