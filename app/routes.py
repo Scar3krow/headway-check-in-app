@@ -372,23 +372,20 @@ def past_responses():
             timestamp = session_data.get("timestamp")
             questionnaire_id = session_data.get("questionnaire_id")
             
-            # ✅ Ensure responses are correctly extracted as a dictionary
-            responses = session_data.get("responses", {})
+            # ✅ **Explicitly fetch the 'responses' field separately**
+            session_doc = db.collection('user_data').document(query_user_id).collection('sessions').document(session_id).get()
+            full_data = session_doc.to_dict() or {}
 
-            # 🔥 **Fix: Explicitly convert Firestore document fields into proper dictionary**
-            if isinstance(responses, dict):
-                extracted_responses = {str(k): v for k, v in responses.items()}
-            else:
-                extracted_responses = {}
+            responses = full_data.get("responses", {})
 
-            # 🔍 Debugging
-            print(f"🔥 DEBUG - Session {session_id} - Extracted Responses: {extracted_responses}")
+            # 🔥 Debugging to ensure responses are extracted correctly
+            print(f"🔥 DEBUG - Session {session_id} - Extracted Responses: {responses}")
 
             responses_list.append({
                 "session_id": session_id,
                 "timestamp": timestamp,
                 "questionnaire_id": questionnaire_id,
-                "responses": extracted_responses  # Ensured dictionary format
+                "responses": responses  # Ensured dictionary format
             })
 
         if not responses_list:
