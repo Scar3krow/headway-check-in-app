@@ -5,7 +5,6 @@ import "../styles/questionnaire.css";
 import "../styles/dashboard.css";
 import { API_URL } from "../config";
 import LoadingMessage from "../components/LoadingMessage";
-//UPDATED
 
 const QuestionnairePage = () => {
     const [questionnaires, setQuestionnaires] = useState([]);
@@ -94,31 +93,38 @@ const QuestionnairePage = () => {
 
         const sessionId = `session_${Date.now()}`; // Generate unique session ID
 
-        const payload = {
-            session_id: sessionId,
-            questionnaire_id: selectedQuestionnaire,
-            responses: Object.keys(responses).map((questionId) => ({
-                question_id: questionId,
-                response_value: responses[questionId],
-            })),
-        };
-
         try {
-            const response = await fetch(`${API_URL}/user-data/${userId}/sessions/${sessionId}/responses`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                    "Device-Token": deviceToken,
-                },
-                body: JSON.stringify(payload),
-            });
+            // ✅ Submit each response as a separate document in Firestore
+            await Promise.all(
+                Object.keys(responses).map(async (questionId) => {
+                    const payload = {
+                        response_value: responses[questionId],
+                        questionnaire_id: selectedQuestionnaire,
+                        timestamp: new Date().toISOString(), // Store timestamp properly
+                    };
 
-            if (!response.ok) {
-                throw new Error("Failed to submit responses.");
-            }
+                    const response = await fetch(
+                        `${API_URL}/user-data/${userId}/sessions/${sessionId}/responses/${questionId}`,
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                Authorization: `Bearer ${token}`,
+                                "Device-Token": deviceToken,
+                            },
+                            body: JSON.stringify(payload),
+                        }
+                    );
 
+                    if (!response.ok) {
+                        throw new Error(`Failed to submit response for question ${questionId}`);
+                    }
+                })
+            );
+
+            // ✅ Navigate only after all responses are submitted
             navigate("/client-dashboard");
+
         } catch (error) {
             console.error("Error submitting responses:", error);
         }
@@ -217,19 +223,6 @@ const QuestionnairePage = () => {
                                 )
                             )}
                         </div>
-                        <div className="navigation-buttons">
-                            <button className="nav-btn themed-nav-btn" onClick={handlePrevious} disabled={currentIndex === 0}>
-                                Previous
-                            </button>
-                            <button className="nav-btn themed-nav-btn" onClick={handleNext} disabled={currentIndex === questions.length - 1}>
-                                Next
-                            </button>
-                        </div>
-                        {currentIndex === questions.length - 1 && (
-                            <button className="submit-btn visible" onClick={handleSubmit} disabled={Object.keys(responses).length !== questions.length}>
-                                Submit Responses
-                            </button>
-                        )}
                     </>
                 )}
             </div>

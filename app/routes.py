@@ -265,10 +265,64 @@ def get_questionnaires():
         print(f"Error fetching questionnaires: {e}")
         return cors_enabled_response({'message': 'Failed to fetch questionnaires', 'error': str(e)}, 500)
 
+@main_bp.route('/user-data/<user_id>/sessions/<session_id>/responses', methods=['POST'])
+def store_user_responses(user_id, session_id):
+    """Store responses inside `user_data/{user_id}/sessions/{session_id}/responses`"""
+    try:
+        # 🔐 Validate token
+        decoded_token, error_response, status_code = validate_token()
+        if error_response:
+            return cors_enabled_response(error_response, status_code)
+
+        # 🔐 Ensure the user can only submit their own responses
+        if decoded_token['id'] != user_id:
+            return cors_enabled_response({'message': 'Unauthorized access'}, 403)
+
+        # 📥 Get request data
+        data = request.get_json()
+        if not data or 'responses' not in data or not isinstance(data['responses'], list):
+            return cors_enabled_response({'message': '"responses" must be a list.'}, 400)
+
+        timestamp = datetime.utcnow().isoformat()
+        questionnaire_id = data.get("questionnaire_id", "default_questionnaire")  # Default questionnaire if not provided
+
+        # 🔹 Reference session document
+        session_ref = db.collection("user_data").document(user_id).collection("sessions").document(session_id)
+
+        # ✅ Ensure session document exists
+        if not session_ref.get().exists:
+            session_ref.set({
+                "questionnaire_id": questionnaire_id,
+                "timestamp": timestamp
+            })
+
+        # 🔹 Reference responses subcollection
+        responses_ref = session_ref.collection("responses")
+
+        # 🔹 Store each response
+        for response in data['responses']:
+            if 'question_id' not in response or 'response_value' not in response:
+                return cors_enabled_response({'message': 'Each response must have "question_id" and "response_value".'}, 400)
+
+            response_doc_id = f"response_{response['question_id']}"
+            responses_ref.document(response_doc_id).set({
+                "questionnaire_id": questionnaire_id,
+                "question_id": response["question_id"],
+                "response_value": response["response_value"],
+                "timestamp": timestamp
+            })
+
+        return cors_enabled_response({'message': 'Responses stored successfully'}, 201)
+
+    except Exception as e:
+        print("Exception in /user-data/{user_id}/sessions/{session_id}/responses:", e)
+        return cors_enabled_response({'message': 'Internal server error', 'error': str(e)}, 500)
+
+
 #UPDATED
 @main_bp.route('/submit-responses', methods=['POST'])
 def submit_responses():
-    """Submit responses to Firestore under `user_data/{user_id}/check_ins/{session_id}`."""
+    """Submit responses to Firestore under `user_data/{user_id}/sessions/{session_id}/responses`."""
     try:
         decoded_token, error_response, status_code = validate_token()
         if error_response:
@@ -279,7 +333,7 @@ def submit_responses():
             return cors_enabled_response({'message': '"responses" must be a list.'}, 400)
 
         user_id = decoded_token['id']
-        session_id = str(uuid.uuid4())
+        session_id = f"session_{int(datetime.utcnow().timestamp() * 1000)}"  # Generate a timestamp-based session ID
         timestamp = datetime.utcnow().isoformat()
         questionnaire_id = data.get("questionnaire_id", "default_questionnaire")  # Default if not provided
 
@@ -288,22 +342,30 @@ def submit_responses():
             if 'question_id' not in response or 'response_value' not in response:
                 return cors_enabled_response({'message': 'Each response must have "question_id" and "response_value".'}, 400)
 
-        # Prepare structured check-in data
-        responses_dict = {str(resp['question_id']): resp['response_value'] for resp in data['responses']}
-        check_in_data = {
+        # 🔹 Store the session document inside `user_data/{user_id}/sessions/{session_id}`
+        session_ref = db.collection("user_data").document(user_id).collection("sessions").document(session_id)
+        session_ref.set({
             "questionnaire_id": questionnaire_id,
-            "timestamp": timestamp,
-            "responses": responses_dict,
-        }
+            "timestamp": timestamp
+        })
 
-        # 🔹 Store the check-in inside `user_data/{user_id}/check_ins/{session_id}`
-        db.collection("user_data").document(user_id).collection("check_ins").document(session_id).set(check_in_data)
+        # 🔹 Store each response inside `user_data/{user_id}/sessions/{session_id}/responses`
+        responses_ref = session_ref.collection("responses")
+        for response in data['responses']:
+            response_doc_id = f"response_{response['question_id']}"
+            responses_ref.document(response_doc_id).set({
+                "questionnaire_id": questionnaire_id,
+                "question_id": response["question_id"],
+                "response_value": response["response_value"],
+                "timestamp": timestamp
+            })
 
         return cors_enabled_response({'message': 'Responses submitted successfully', 'session_id': session_id}, 201)
 
     except Exception as e:
         print("Exception in /submit-responses:", e)
         return cors_enabled_response({'message': 'Internal server error', 'error': str(e)}, 500)
+
 
 #UPDATED
 @main_bp.route('/past-responses', methods=['GET'])
@@ -370,11 +432,11 @@ def past_responses():
     except Exception as e:
         print(f"Error fetching past responses: {e}")
         return cors_enabled_response({'message': 'Error retrieving past responses'}, 500)
-
+"""
 #UPDATED
 @main_bp.route('/submit-answer', methods=['POST'])
 def submit_answer():
-    """Submit an answer to Firestore under `user_data/{user_id}/answers/{answer_id}`."""
+    ""Submit an answer to Firestore under `user_data/{user_id}/answers/{answer_id}`.""
     try:
         decoded_token, error_response, status_code = validate_token()
         if error_response:
@@ -403,7 +465,7 @@ def submit_answer():
     except Exception as e:
         print("Exception in /submit-answer:", e)
         return cors_enabled_response({'message': 'Internal server error', 'error': str(e)}, 500)
-
+"""
 
 #UPDATED
 @main_bp.route('/session-details', methods=['GET'])
