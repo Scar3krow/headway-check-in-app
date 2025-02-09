@@ -65,10 +65,17 @@ const ClientResponsesPage = () => {
 
         data.forEach((session) => {
             const { session_id, timestamp, responses } = session;
-            sessions[session_id] = {
-                date: new Date(timestamp),
-                responses: responses || {}, // Ensure it's always an object
-            };
+            if (!sessions[session_id]) {
+                sessions[session_id] = {
+                    date: new Date(timestamp),
+                    responses: {},
+                };
+            }
+
+            // ✅ Ensure responses are properly extracted from Firestore subcollection
+            responses.forEach(({ question_id, response_value }) => {
+                sessions[session_id].responses[question_id] = response_value;
+            });
         });
 
         // ✅ Sort session IDs by timestamp
@@ -76,17 +83,17 @@ const ClientResponsesPage = () => {
             (a, b) => sessions[a].date - sessions[b].date
         );
 
-        // ✅ Extract unique question IDs safely
+        // ✅ Extract all unique question IDs across all sessions
         const allQuestionIds = new Set();
         data.forEach(session => {
-            if (session.responses) {
-                Object.keys(session.responses).forEach(qid => allQuestionIds.add(qid));
-            }
+            session.responses.forEach(response => {
+                allQuestionIds.add(response.question_id);
+            });
         });
 
-        // ✅ Format data into rows with question text & responses
+        // ✅ Format data into table rows with question text & responses
         const tableRows = [...allQuestionIds].map((questionId) => ({
-            questionText: `Question ${questionId}`, // Placeholder, update if mapping exists
+            questionText: `Question ${questionId}`, // Placeholder; replace if needed
             responses: sortedSessionIds.map(
                 (sessionId) => sessions[sessionId]?.responses[questionId] || "-"
             ),

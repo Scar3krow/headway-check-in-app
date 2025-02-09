@@ -306,10 +306,8 @@ def store_user_responses(user_id, session_id):
 
             response_doc_id = f"response_{response['question_id']}"
             responses_ref.document(response_doc_id).set({
-                "questionnaire_id": questionnaire_id,
                 "question_id": response["question_id"],
                 "response_value": response["response_value"],
-                "timestamp": timestamp
             })
 
         return cors_enabled_response({'message': 'Responses stored successfully'}, 201)
@@ -321,12 +319,12 @@ def store_user_responses(user_id, session_id):
 
 @main_bp.route('/past-responses', methods=['GET'])
 def past_responses():
-    """Fetch past responses for a user from `user_data/{user_id}/sessions`."""
+    """Fetch past responses for a user from `user_data/{user_id}/sessions/{session_id}/responses`."""
     decoded_token, error_response, status_code = validate_token()
     if error_response:
         return cors_enabled_response(error_response, status_code)
 
-    user_role = decoded_token.get('role')  
+    user_role = decoded_token.get('role')
     user_id = decoded_token.get('id')
     query_user_id = request.args.get('user_id')
     questionnaire_id = request.args.get('questionnaire_id', None)  # Optional filter
@@ -356,36 +354,40 @@ def past_responses():
         else:
             return cors_enabled_response({'message': 'Unauthorized: Invalid role'}, 403)
 
-        # 📥 **Fetch session data for the user**
+        # 📥 **Fetch sessions for the given user_id**
         sessions_ref = db.collection('user_data').document(query_user_id).collection('sessions')
-
-        # Apply questionnaire filter if provided
-        if questionnaire_id:
-            sessions_ref = sessions_ref.where("questionnaire_id", "==", questionnaire_id)
-
         sessions = sessions_ref.stream()
 
         responses_list = []
+
         for session in sessions:
             session_data = session.to_dict()
             session_id = session.id
-            timestamp = session_data.get("timestamp")
-            questionnaire_id = session_data.get("questionnaire_id")
-            
-            # ✅ **Explicitly fetch the 'responses' field separately**
-            session_doc = db.collection('user_data').document(query_user_id).collection('sessions').document(session_id).get()
-            full_data = session_doc.to_dict() or {}
+            session_timestamp = session_data.get("timestamp", None)
+            session_questionnaire_id = session_data.get("questionnaire_id", None)
 
-            responses = full_data.get("responses", {})
+            # If a questionnaire_id filter is provided, skip sessions that don't match
+            if questionnaire_id and session_questionnaire_id != questionnaire_id:
+                continue
 
-            # 🔥 Debugging to ensure responses are extracted correctly
-            print(f"🔥 DEBUG - Session {session_id} - Extracted Responses: {responses}")
+            # 📥 **Fetch responses subcollection**
+            responses_ref = db.collection('user_data').document(query_user_id).collection('sessions').document(session_id).collection('responses')
+            responses = responses_ref.stream()
+
+            session_responses = [
+                {
+                    "question_id": r.to_dict().get("question_id"),
+                    "response_value": r.to_dict().get("response_value"),
+                    "timestamp": r.to_dict().get("timestamp"),
+                }
+                for r in responses
+            ]
 
             responses_list.append({
                 "session_id": session_id,
-                "timestamp": timestamp,
-                "questionnaire_id": questionnaire_id,
-                "responses": responses  # Ensured dictionary format
+                "timestamp": session_timestamp,
+                "questionnaire_id": session_questionnaire_id,
+                "responses": session_responses
             })
 
         if not responses_list:
@@ -394,7 +396,7 @@ def past_responses():
         return cors_enabled_response(responses_list, 200)
 
     except Exception as e:
-        print(f"❌ ERROR fetching past responses: {e}")
+        print(f"Error fetching past responses: {e}")
         return cors_enabled_response({'message': 'Error retrieving past responses'}, 500)
 
 
