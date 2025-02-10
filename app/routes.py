@@ -6,6 +6,7 @@ from flask_bcrypt import Bcrypt
 from google.cloud import firestore
 from datetime import datetime, timedelta, timezone
 from firebase_admin import firestore
+from google.cloud.firestore import SERVER_TIMESTAMP
 
 bcrypt = Bcrypt()
 main_bp = Blueprint('main', __name__)
@@ -283,7 +284,7 @@ def store_user_responses(user_id, session_id):
         if not data or 'responses' not in data or not isinstance(data['responses'], list):
             return cors_enabled_response({'message': '"responses" must be a list.'}, 400)
 
-        timestamp = datetime.utcnow().isoformat()
+        timestamp = SERVER_TIMESTAMP
         questionnaire_id = data.get("questionnaire_id", "default_questionnaire")  # Default questionnaire if not provided
 
         # 🔹 Reference session document
