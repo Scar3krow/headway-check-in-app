@@ -150,6 +150,7 @@ const ClientResultsPage = () => {
     };
 
     const handleSessionClick = (sessionId) => {
+        console.log(`Navigating to: /client-session-details/${userId}/${sessionId}`);
         navigate(`/client-session-details/${userId}/${sessionId}`);
     };
 
