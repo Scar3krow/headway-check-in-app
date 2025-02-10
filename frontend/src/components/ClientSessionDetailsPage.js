@@ -9,145 +9,147 @@ import { API_URL } from "../config";
 import LoadingMessage from "../components/LoadingMessage";
 
 const ClientSessionDetailsPage = () => {
-    const { sessionId, userId } = useParams(); // ✅ Get userId and sessionId from URL params
-    const [sessionDetails, setSessionDetails] = useState([]);
-    const [questionMap, setQuestionMap] = useState({});
-    const [errorMessage, setErrorMessage] = useState("");
-    const navigate = useNavigate();
-    const [isLoading, setIsLoading] = useState(true);
+  // Expect both userId and sessionId in the URL parameters
+  const { sessionId, userId } = useParams();
+  const [sessionDetails, setSessionDetails] = useState([]);
+  const [questionMap, setQuestionMap] = useState({});
+  const [errorMessage, setErrorMessage] = useState("");
+  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(true);
 
-    const responseTextMap = {
-        1: "Not at all",
-        2: "Occasionally",
-        3: "Sometimes",
-        4: "Often",
-        5: "All the time",
-    };
+  const responseTextMap = {
+    1: "Not at all",
+    2: "Occasionally",
+    3: "Sometimes",
+    4: "Often",
+    5: "All the time",
+  };
 
-    useEffect(() => {
-        console.log(`📌 Checking params: userId=${userId}, sessionId=${sessionId}`); // ✅ Debugging
+  useEffect(() => {
+    // If either parameter is missing, we cannot proceed.
+    if (!sessionId || !userId) {
+      setErrorMessage("Session ID or User ID not provided. Please select a session.");
+      // Redirecting to client dashboard (or you may choose another route)
+      navigate("/client-dashboard");
+      return;
+    }
 
-        if (!sessionId || !userId) {
-            console.error("🚨 Missing sessionId or userId. Redirecting...");
-            setErrorMessage("Session ID or User ID not provided. Please select a session.");
-            navigate("/admin-dashboard"); // ✅ Redirect to prevent infinite loops
-            return;
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const deviceToken = localStorage.getItem("device_token");
+        const role = localStorage.getItem("role");
+
+        // Ensure the token exists and the role is one of the allowed ones
+        if (!token || !["client", "clinician", "admin"].includes(role)) {
+          navigate("/unauthorized");
+          return;
         }
 
-        const fetchData = async () => {
-            try {
-                const token = localStorage.getItem("token");
-                const deviceToken = localStorage.getItem("device_token");
-                const role = localStorage.getItem("role");
+        // Fetch the session responses from our new structure
+        const sessionUrl = `${API_URL}/user-data/${userId}/sessions/${sessionId}/responses`;
+        const sessionResponse = await fetch(sessionUrl, {
+          headers: { 
+            "Content-Type": "application/json", 
+            Authorization: `Bearer ${token}`,
+            "Device-Token": deviceToken,
+          },
+        });
 
-                if (!token || !["clinician", "admin"].includes(role)) {
-                    console.warn("🚨 Unauthorized access attempt. Redirecting...");
-                    navigate("/unauthorized");
-                    return;
-                }
+        if (!sessionResponse.ok) {
+          throw new Error("Failed to fetch session responses.");
+        }
 
-                console.log(`📡 Fetching session responses for user: ${userId}, session: ${sessionId}`);
+        const sessionData = await sessionResponse.json();
+        console.log("✅ Session responses:", sessionData);
 
-                // ✅ Fetch session responses
-                const sessionResponse = await fetch(`${API_URL}/user-data/${userId}/sessions/${sessionId}/responses`, {
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`,
-                        "Device-Token": deviceToken,
-                    },
-                });
+        // Determine the questionnaire ID from one of the response documents
+        // If no responses exist, we assume there is no data.
+        const questionnaireId = sessionData.length > 0
+          ? sessionData[0].questionnaire_id || "default_questionnaire"
+          : "default_questionnaire";
 
-                if (!sessionResponse.ok) {
-                    throw new Error("❌ Failed to fetch session responses.");
-                }
+        if (!questionnaireId) {
+          throw new Error("Questionnaire ID missing in session data.");
+        }
 
-                const sessionData = await sessionResponse.json();
-                console.log("✅ Session Data Retrieved:", sessionData);
+        // Fetch the questions corresponding to the questionnaire
+        const questionsUrl = `${API_URL}/questions?questionnaire_id=${questionnaireId}`;
+        const questionsResponse = await fetch(questionsUrl, {
+          headers: { 
+            "Content-Type": "application/json", 
+            Authorization: `Bearer ${token}`,
+            "Device-Token": deviceToken,
+          },
+        });
 
-                // ✅ Extract questionnaire ID from responses
-                const questionnaireId = sessionData.length > 0 ? sessionData[0].questionnaire_id : "default_questionnaire";
+        if (!questionsResponse.ok) {
+          throw new Error("Failed to fetch questions.");
+        }
 
-                // ✅ Fetch Questions for the questionnaire
-                console.log(`📡 Fetching questions for questionnaire: ${questionnaireId}`);
+        const questionsData = await questionsResponse.json();
+        console.log("✅ Questions data:", questionsData);
 
-                const questionsResponse = await fetch(`${API_URL}/questions?questionnaire_id=${questionnaireId}`, {
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`,
-                        "Device-Token": deviceToken,
-                    },
-                });
+        // Build a map of question IDs to their text
+        const qMap = questionsData.reduce((acc, question) => {
+          acc[question.id] = question.text;
+          return acc;
+        }, {});
 
-                if (!questionsResponse.ok) {
-                    throw new Error("❌ Failed to fetch questions.");
-                }
-
-                const questionsData = await questionsResponse.json();
-                console.log("✅ Questions Data Retrieved:", questionsData);
-
-                // 📝 Map Question IDs to Text
-                const qMap = questionsData.reduce((acc, question) => {
-                    acc[question.id] = question.text;
-                    return acc;
-                }, {});
-
-                setSessionDetails(sessionData);
-                setQuestionMap(qMap);
-            } catch (error) {
-                console.error("❌ Error fetching session details:", error);
-                setErrorMessage(error.message || "Error fetching session details. Please try again.");
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchData();
-    }, [sessionId, userId, navigate]);
-
-    const handleBackToClientResponses = () => {
-        console.log("🔙 Navigating back to previous page...");
-        navigate(-1); // Navigate back
+        setSessionDetails(sessionData);
+        setQuestionMap(qMap);
+      } catch (error) {
+        console.error("Error fetching session details:", error);
+        setErrorMessage(error.message || "Error fetching session details. Please try again.");
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    return (
-        <div className="session-details-container">
-            <h2 className="session-details-title">Session Details</h2>
-            {errorMessage && <p className="error-message">{errorMessage}</p>}
-            {isLoading ? <LoadingMessage text="Fetching session details..." /> : null}
+    fetchData();
+  }, [sessionId, userId, navigate]);
 
-            {sessionDetails.length > 0 ? (
-                <div className="session-details-table-wrapper">
-                    <table className="session-details-table">
-                        <thead>
-                            <tr>
-                                <th>Question</th>
-                                <th>Response</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {sessionDetails.map((detail) => (
-                                <tr key={detail.question_id}>
-                                    <td>{questionMap[detail.question_id] || `Question ${detail.question_id}`}</td>
-                                    <td>{responseTextMap[detail.response_value] || "Unknown"}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            ) : (
-                <p className="no-data-message">{isLoading ? "" : "No session details available."}</p>
-            )}
+  const handleBackToClientResponses = () => {
+    navigate(-1); // Navigate back to the previous page
+  };
 
-            <div className="form-actions">
-                <button
-                    onClick={handleBackToClientResponses}
-                    className="dashboard-button secondary"
-                >
-                    Back to Responses
-                </button>
-            </div>
+  return (
+    <div className="session-details-container">
+      <h2 className="session-details-title">Session Details</h2>
+      {errorMessage && <p className="error-message">{errorMessage}</p>}
+      {isLoading ? <LoadingMessage text="Fetching session details..." /> : null}
+      {sessionDetails.length > 0 ? (
+        <div className="session-details-table-wrapper">
+          <table className="session-details-table">
+            <thead>
+              <tr>
+                <th>Question</th>
+                <th>Response</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sessionDetails.map((detail) => (
+                <tr key={detail.question_id}>
+                  <td>{questionMap[detail.question_id] || `Question ${detail.question_id}`}</td>
+                  <td>{responseTextMap[detail.response_value] || "Unknown"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-    );
+      ) : (
+        <p className="no-data-message">{isLoading ? "" : "No session details available."}</p>
+      )}
+      <div className="form-actions">
+        <button
+          onClick={handleBackToClientResponses}
+          className="dashboard-button secondary"
+        >
+          Back to Responses
+        </button>
+      </div>
+    </div>
+  );
 };
 
 export default ClientSessionDetailsPage;
