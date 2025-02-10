@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import "../styles/global.css"; // Consolidated global styles
-import "../styles/forms.css"; // For form-specific styles
-import "../styles/table.css"; // For table-specific styles
-import "../styles/cliniciandata.css"; // Page-specific styles
+import "../styles/global.css"; 
+import "../styles/forms.css"; 
+import "../styles/table.css"; 
+import "../styles/cliniciandata.css"; 
 import { API_URL } from "../config";
-//UPDATED
 
 const ClinicianDataPage = () => {
     const [clinicians, setClinicians] = useState([]);
@@ -15,6 +14,7 @@ const ClinicianDataPage = () => {
     const [error, setError] = useState("");
     const navigate = useNavigate();
 
+    // ✅ Fetch Clinicians on Mount
     useEffect(() => {
         const fetchClinicians = async () => {
             try {
@@ -42,6 +42,7 @@ const ClinicianDataPage = () => {
         fetchClinicians();
     }, []);
 
+    // ✅ Fetch Clinician Stats when a clinician is selected
     const handleClinicianChange = async (e) => {
         const clinicianId = e.target.value;
         setSelectedClinicianId(clinicianId);
@@ -60,7 +61,7 @@ const ClinicianDataPage = () => {
 
             if (response.data) {
                 setStats(response.data);
-                setError(""); // Clear any previous errors
+                setError(""); 
             } else {
                 setStats(null);
                 setError("No data available for the selected clinician.");

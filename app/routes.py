@@ -451,10 +451,11 @@ def get_session_responses(user_id, session_id):
         print(f"Error fetching session responses: {e}")
         return cors_enabled_response({'message': 'Error retrieving session responses'}, 500)
 
+"""
 #REDUNDANT?
 @main_bp.route('/session-details', methods=['GET'])
 def session_details():
-    """Fetch session details by session_id, ensuring correct role-based access control."""
+    "Fetch session details by session_id, ensuring correct role-based access control."
     try:
         decoded_token, error_response, status_code = validate_token()
         if error_response:
@@ -514,7 +515,7 @@ def session_details():
     except Exception as e:
         print(f"Error fetching session details: {e}")
         return cors_enabled_response({'message': 'Error retrieving session details'}, 500)
-
+"""
 
 @main_bp.route('/search-users', methods=['GET'])
 def search_users():
@@ -814,10 +815,9 @@ def get_admins():
     except Exception as e:
         return cors_enabled_response({"message": "Failed to fetch admins", "error": str(e)}, 500)
 
-#UPDATED
 @main_bp.route('/clinician-data', methods=['GET'])
 def get_clinician_data():
-    """Fetch clinician data for analysis."""
+    """Fetch clinician data for analysis based on the new Firestore structure."""
     try:
         decoded_token, error_response, status_code = validate_token()
         if error_response:
@@ -831,7 +831,7 @@ def get_clinician_data():
         if not clinician_id:
             return cors_enabled_response({'message': 'Clinician ID is required'}, 400)
 
-        # 🔹 Get all clients assigned to this clinician
+        # 🔍 **Fetch all clients assigned to the clinician**
         clients_ref = db.collection('users').where('assigned_clinician_id', '==', clinician_id).stream()
         clients = [{**client.to_dict(), 'user_id': client.id} for client in clients_ref]
 
@@ -847,50 +847,54 @@ def get_clinician_data():
             }, 200)
 
         # 🛠 Helper Functions
-        def calculate_scores(client):
-            """Calculate first & latest session scores for a client."""
+        def calculate_scores(user_id):
+            """Fetch all session scores for a user, sorted by timestamp."""
             try:
-                user_sessions_ref = db.collection('user_data').document(client['user_id']).collection('sessions').stream()
-                sessions = {}
+                sessions_ref = db.collection("user_data").document(user_id).collection("sessions").stream()
+                session_scores = []
 
-                for session_doc in user_sessions_ref:
+                for session_doc in sessions_ref:
                     session_id = session_doc.id
-                    session_data = session_doc.reference.collection('responses').stream()
-                    responses = [resp.to_dict().get('response_value') for resp in session_data]
+                    session_data = session_doc.to_dict()
+                    timestamp = session_data.get("timestamp")
+
+                    # 🔍 **Fetch all responses for this session**
+                    responses_ref = db.collection("user_data").document(user_id).collection("sessions").document(session_id).collection("responses").stream()
+                    responses = [resp.to_dict().get('response_value') for resp in responses_ref if 'response_value' in resp.to_dict()]
 
                     if responses:
-                        sessions[session_id] = {
-                            'responses': responses,
-                            'timestamp': session_doc.to_dict().get('timestamp')
-                        }
+                        total_score = sum(responses) - 10  # Adjusted for scaling
+                        session_scores.append({"timestamp": timestamp, "score": total_score})
 
-                sorted_sessions = sorted(sessions.values(), key=lambda x: x['timestamp'])
+                # ✅ Sort sessions by timestamp (oldest first)
+                session_scores.sort(key=lambda x: x["timestamp"])
 
-                if len(sorted_sessions) < 2:
+                if len(session_scores) < 2:
                     return None, None
 
-                first_score = sum(sorted_sessions[0]['responses']) - 10
-                latest_score = sum(sorted_sessions[-1]['responses']) - 10
-
-                return first_score, latest_score
+                return session_scores[0]["score"], session_scores[-1]["score"]
 
             except Exception as e:
-                print(f"Error calculating scores for {client['user_id']}: {e}")
+                print(f"Error fetching scores for {user_id}: {e}")
                 return None, None
 
         def is_clinically_significant(initial, latest):
+            """Determine if a client shows clinically significant improvement."""
             return initial > 18 and (initial - latest) >= 12
 
         def is_recent(timestamp):
+            """Check if the session is within the last 6 months."""
             six_months_ago = datetime.utcnow().replace(tzinfo=timezone.utc) - timedelta(days=182)
             return timestamp and timestamp >= six_months_ago
 
         # 🔹 Compute Statistics
-        improved, clinically_significant = 0, 0
-        improved_last_6_months, clinically_significant_last_6_months = 0, 0
+        improved = 0
+        clinically_significant = 0
+        improved_last_6_months = 0
+        clinically_significant_last_6_months = 0
 
         for client in clients:
-            initial, latest = calculate_scores(client)
+            initial, latest = calculate_scores(client['user_id'])
 
             if initial is not None and latest is not None:
                 if latest < initial:
@@ -898,6 +902,7 @@ def get_clinician_data():
                 if is_clinically_significant(initial, latest):
                     clinically_significant += 1
 
+                # 🔍 Check if the latest session is within the last 6 months
                 user_sessions_ref = db.collection('user_data').document(client['user_id']).collection('sessions').stream()
                 has_recent_responses = any(is_recent(session.to_dict().get('timestamp')) for session in user_sessions_ref)
 

@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import "../styles/global.css";
-import "../styles/forms.css";
-import "../styles/table.css";
-import "../styles/sessiondetails.css";
+import "../styles/global.css";    
+import "../styles/forms.css";     
+import "../styles/table.css";     
+import "../styles/sessiondetails.css"; 
 import "../styles/loading.css";
 import { API_URL } from "../config";
 import LoadingMessage from "../components/LoadingMessage";
-//UPDATED
 
 const ClientSessionDetailsPage = () => {
     const { sessionId } = useParams();
@@ -38,37 +37,36 @@ const ClientSessionDetailsPage = () => {
                 const role = localStorage.getItem("role");
                 const userId = localStorage.getItem("user_id");
 
-                if (!token || !deviceToken || !["client", "clinician", "admin"].includes(role)) {
+                if (!token || !["client", "clinician", "admin"].includes(role)) {
                     navigate("/unauthorized");
                     return;
                 }
 
-                // 🔥 **Fetch Session Details from `user_data` & Questions**
-                const [sessionResponse, questionsResponse] = await Promise.all([
-                    fetch(`${API_URL}/session-details?session_id=${sessionId}`, {
-                        headers: {
-                            "Content-Type": "application/json",
+                // ✅ Fetch Session Responses & Questionnaires
+                const [sessionResponse, questionnaireResponse] = await Promise.all([
+                    fetch(`${API_URL}/user-data/${userId}/sessions/${sessionId}/responses`, {
+                        headers: { 
+                            "Content-Type": "application/json", 
                             Authorization: `Bearer ${token}`,
                             "Device-Token": deviceToken,
                         },
                     }),
-                    fetch(`${API_URL}/questions`, {
-                        headers: {
-                            "Content-Type": "application/json",
+                    fetch(`${API_URL}/questionnaires`, {
+                        headers: { 
+                            "Content-Type": "application/json", 
                             Authorization: `Bearer ${token}`,
                             "Device-Token": deviceToken,
                         },
                     }),
                 ]);
 
-                if (!sessionResponse.ok || !questionsResponse.ok) {
+                if (!sessionResponse.ok || !questionnaireResponse.ok) {
                     throw new Error("Failed to fetch data.");
                 }
 
                 const sessionData = await sessionResponse.json();
-                const questionsData = await questionsResponse.json();
+                const questionnaires = await questionnaireResponse.json();
 
-                // ✅ **Restrict Clients to Their Own Data**
                 if (role === "client") {
                     const isClientSession = sessionData.every(detail => detail.user_id === userId);
                     if (!isClientSession) {
@@ -76,17 +74,38 @@ const ClientSessionDetailsPage = () => {
                     }
                 }
 
+                // ✅ Determine the questionnaire ID from responses
+                const questionnaireId = sessionData.length > 0 ? sessionData[0].questionnaire_id : null;
+                if (!questionnaireId) {
+                    throw new Error("Questionnaire ID missing in session data.");
+                }
+
+                // ✅ Fetch Questions for the questionnaire
+                const questionsResponse = await fetch(`${API_URL}/questions?questionnaire_id=${questionnaireId}`, {
+                    headers: { 
+                        "Content-Type": "application/json", 
+                        Authorization: `Bearer ${token}`,
+                        "Device-Token": deviceToken,
+                    },
+                });
+
+                if (!questionsResponse.ok) {
+                    throw new Error("Failed to fetch questions.");
+                }
+
+                const questionsData = await questionsResponse.json();
+
                 // 📝 **Map Question IDs to Text**
-                const questionMap = questionsData.reduce((acc, question) => {
+                const qMap = questionsData.reduce((acc, question) => {
                     acc[question.id] = question.text;
                     return acc;
                 }, {});
 
                 setSessionDetails(sessionData);
-                setQuestionMap(questionMap);
+                setQuestionMap(qMap);
             } catch (error) {
                 console.error("Error fetching session details:", error);
-                setErrorMessage("Error fetching session details. Please try again.");
+                setErrorMessage("An error occurred while fetching session details. Please try again.");
             } finally {
                 setIsLoading(false);
             }
