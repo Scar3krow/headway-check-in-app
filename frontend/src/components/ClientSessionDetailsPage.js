@@ -9,7 +9,7 @@ import { API_URL } from "../config";
 import LoadingMessage from "../components/LoadingMessage";
 
 const ClientSessionDetailsPage = () => {
-    const { sessionId } = useParams();
+    const { sessionId, userId } = useParams(); // ✅ Get client ID (userId) and sessionId from URL params
     const [sessionDetails, setSessionDetails] = useState([]);
     const [questionMap, setQuestionMap] = useState({});
     const [errorMessage, setErrorMessage] = useState("");
@@ -25,8 +25,8 @@ const ClientSessionDetailsPage = () => {
     };
 
     useEffect(() => {
-        if (!sessionId) {
-            setErrorMessage("Session ID not provided. Please select a session.");
+        if (!sessionId || !userId) {
+            setErrorMessage("Session ID or User ID not provided. Please select a session.");
             return;
         }
 
@@ -35,22 +35,16 @@ const ClientSessionDetailsPage = () => {
                 const token = localStorage.getItem("token");
                 const deviceToken = localStorage.getItem("device_token");
                 const role = localStorage.getItem("role");
-                const clinicianId = localStorage.getItem("user_id");
-                const clientId = localStorage.getItem("selectedClientId"); // ✅ Get selected client ID
 
-                if (!token || !deviceToken || !["clinician", "admin"].includes(role)) {
+                if (!token || !["clinician", "admin"].includes(role)) {
                     navigate("/unauthorized");
                     return;
                 }
 
-                if (!clientId) {
-                    throw new Error("No client selected. Please select a client first.");
-                }
+                console.log(`Fetching session responses for client: ${userId}, session: ${sessionId}`);
 
-                console.log(`Fetching session responses for client: ${clientId}, session: ${sessionId}`);
-
-                // ✅ Fetch session responses from the correct client's session
-                const sessionResponse = await fetch(`${API_URL}/user-data/${clientId}/sessions/${sessionId}/responses`, {
+                // ✅ Fetch session responses for the correct client
+                const sessionResponse = await fetch(`${API_URL}/user-data/${userId}/sessions/${sessionId}/responses`, {
                     headers: {
                         "Content-Type": "application/json",
                         Authorization: `Bearer ${token}`,
@@ -67,7 +61,7 @@ const ClientSessionDetailsPage = () => {
                 // ✅ Extract questionnaire ID from responses
                 const questionnaireId = sessionData.length > 0 ? sessionData[0].questionnaire_id : "default_questionnaire";
 
-                // ✅ Fetch questions for the questionnaire
+                // ✅ Fetch Questions for the questionnaire
                 const questionsResponse = await fetch(`${API_URL}/questions?questionnaire_id=${questionnaireId}`, {
                     headers: {
                         "Content-Type": "application/json",
@@ -92,14 +86,14 @@ const ClientSessionDetailsPage = () => {
                 setQuestionMap(qMap);
             } catch (error) {
                 console.error("Error fetching session details:", error);
-                setErrorMessage("Error fetching session details. Please try again.");
+                setErrorMessage(error.message || "Error fetching session details. Please try again.");
             } finally {
                 setIsLoading(false);
             }
         };
 
         fetchData();
-    }, [sessionId, navigate]);
+    }, [sessionId, userId, navigate]);
 
     const handleBackToClientResponses = () => {
         navigate(-1); // Navigate back to the previous page

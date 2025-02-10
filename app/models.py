@@ -1,3 +1,5 @@
+"""
+
 from google.cloud import firestore
 
 db = firestore.Client()
@@ -44,3 +46,4 @@ class Response:
     def get_by_user(user_id):
         responses_ref = db.collection('responses')
         return [{'id': r.id, **r.to_dict()} for r in responses_ref.where('user_id', '==', user_id).stream()]
+"""
