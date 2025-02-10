@@ -400,7 +400,58 @@ def past_responses():
         return cors_enabled_response({'message': 'Error retrieving past responses'}, 500)
 
 
-#UPDATED
+@main_bp.route('/user-data/<user_id>/sessions/<session_id>/responses', methods=['GET'])
+def get_session_responses(user_id, session_id):
+    """Fetch session responses for a given session, ensuring correct role-based access control."""
+    try:
+        decoded_token, error_response, status_code = validate_token()
+        if error_response:
+            return error_response
+
+        requestor_role = decoded_token.get('role')
+        requestor_id = decoded_token.get('id')
+
+        # 🔍 **Validate session owner**
+        session_ref = db.collection("user_data").document(user_id).collection("sessions").document(session_id)
+        if not session_ref.get().exists:
+            return cors_enabled_response({'message': 'Session not found'}, 404)
+
+        # 🔒 **Enforce Role-Based Access Control**
+        if requestor_role == "client" and user_id != requestor_id:
+            print(f"Unauthorized: Client {requestor_id} attempted to access session {session_id} (owned by {user_id})")
+            return cors_enabled_response({'message': 'Unauthorized: Clients can only access their own sessions.'}, 403)
+
+        if requestor_role == "clinician":
+            client_doc = db.collection('users').document(user_id).get()
+            if client_doc.exists:
+                assigned_clinician = client_doc.to_dict().get('assigned_clinician_id')
+                if assigned_clinician != requestor_id:
+                    print(f"Unauthorized: Clinician {requestor_id} is not assigned to client {user_id}")
+                    return cors_enabled_response({'message': 'Unauthorized access to session'}, 403)
+
+        # 📥 **Fetch responses from Firestore**
+        responses_ref = session_ref.collection("responses").stream()
+
+        responses = []
+        for response_doc in responses_ref:
+            response_data = response_doc.to_dict()
+            responses.append({
+                'question_id': response_data.get('question_id'),
+                'response_value': response_data.get('response_value'),
+                'timestamp': response_data.get('timestamp'),
+                'questionnaire_id': response_data.get('questionnaire_id', "default_questionnaire")  # Default for backward compatibility
+            })
+
+        if not responses:
+            return cors_enabled_response({'message': 'No responses found for this session'}, 404)
+
+        return cors_enabled_response(responses, 200)
+
+    except Exception as e:
+        print(f"Error fetching session responses: {e}")
+        return cors_enabled_response({'message': 'Error retrieving session responses'}, 500)
+
+#REDUNDANT?
 @main_bp.route('/session-details', methods=['GET'])
 def session_details():
     """Fetch session details by session_id, ensuring correct role-based access control."""
