@@ -7,7 +7,6 @@ import "../styles/sessiondetails.css"; // Specific styles for session details
 import "../styles/loading.css";
 import { API_URL } from "../config";
 import LoadingMessage from "../components/LoadingMessage";
-//UPDATED
 
 const SessionDetailsPage = () => {
   const { sessionId } = useParams();
@@ -43,9 +42,9 @@ const SessionDetailsPage = () => {
           return;
         }
 
-        // ✅ Fetch Session Details from new user_data structure
+        // ✅ Fetch Session Responses from Firestore
         const sessionRef = `${API_URL}/user-data/${userId}/sessions/${sessionId}/responses`;
-        const [sessionResponse, questionnaireResponse] = await Promise.all([
+        const [responsesResponse, questionnairesResponse] = await Promise.all([
           fetch(sessionRef, {
             headers: { 
               "Content-Type": "application/json", 
@@ -62,19 +61,19 @@ const SessionDetailsPage = () => {
           }),
         ]);
 
-        if (sessionResponse.status === 401 || questionnaireResponse.status === 401) {
+        if (responsesResponse.status === 401 || questionnairesResponse.status === 401) {
           throw new Error("Unauthorized access. You may not have permission.");
         }
 
-        if (!sessionResponse.ok || !questionnaireResponse.ok) {
+        if (!responsesResponse.ok || !questionnairesResponse.ok) {
           throw new Error("Failed to fetch session data.");
         }
 
-        const sessionData = await sessionResponse.json();
-        const questionnaires = await questionnaireResponse.json();
+        const responsesData = await responsesResponse.json();
+        const questionnaires = await questionnairesResponse.json();
 
-        // ✅ Determine the questionnaire ID from responses
-        const questionnaireId = sessionData.length > 0 ? sessionData[0].questionnaire_id : null;
+        // ✅ Extract Questionnaire ID from response data
+        const questionnaireId = responsesData.length > 0 ? responsesData[0].questionnaire_id : null;
         if (!questionnaireId) {
           throw new Error("Questionnaire ID missing in session data.");
         }
@@ -100,13 +99,19 @@ const SessionDetailsPage = () => {
           return acc;
         }, {});
 
-        setSessionDetails(sessionData);
+        // ✅ Format response data
+        const formattedResponses = responsesData.map((response) => ({
+          question_id: response.question_id,
+          response_value: response.response_value,
+        }));
+
+        setSessionDetails(formattedResponses);
         setQuestionMap(qMap);
       } catch (error) {
         console.error("Error fetching session details:", error);
         setErrorMessage("An error occurred while fetching session details. Please try again.");
       } finally {
-          setIsLoading(false);
+        setIsLoading(false);
       }
     };
 

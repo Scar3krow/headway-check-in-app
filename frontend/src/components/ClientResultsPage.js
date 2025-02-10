@@ -7,12 +7,11 @@ import "../styles/loading.css";
 import ClinicianGraph from "./ClinicianGraph";
 import { API_URL } from "../config";
 import LoadingMessage from "../components/LoadingMessage";
-//UPDATED
 
 const ClientResultsPage = () => {
     const { userId } = useParams();
     const [clientName, setClientName] = useState("");
-    const [responsesTable, setResponsesTable] = useState({ rows: [], sessionDates: [] });
+    const [responsesTable, setResponsesTable] = useState({ rows: [], sessionDates: [], sessionIds: [] });
     const [graphData, setGraphData] = useState(null);
     const [sessionIds, setSessionIds] = useState([]);
     const [errorMessage, setErrorMessage] = useState("");
@@ -46,7 +45,7 @@ const ClientResultsPage = () => {
                 const userInfo = await userInfoResponse.json();
                 setClientName(`${userInfo.first_name} ${userInfo.last_name}`);
 
-                // Fetch past responses from `user_data`
+                // Fetch past responses from Firestore
                 const responsesResponse = await fetch(`${API_URL}/past-responses?user_id=${userId}`, {
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -85,7 +84,7 @@ const ClientResultsPage = () => {
             if (!sessions[session_id]) {
                 sessions[session_id] = {
                     date: new Date(timestamp),
-                    responses: {},
+                    responses: {}, 
                 };
             }
             responses.forEach(({ question_id, response_value }) => {
@@ -95,8 +94,14 @@ const ClientResultsPage = () => {
 
         const sortedSessionIds = Object.keys(sessions).sort((a, b) => sessions[a].date - sessions[b].date);
 
-        const questionIds = Object.keys(data[0]?.responses || {});
-        const tableRows = questionIds.map((questionId) => ({
+        const allQuestionIds = new Set();
+        data.forEach(session => {
+            if (session.responses) {
+                session.responses.forEach(({ question_id }) => allQuestionIds.add(question_id));
+            }
+        });
+
+        const tableRows = [...allQuestionIds].map((questionId) => ({
             questionText: `Question ${questionId}`,
             responses: sortedSessionIds.map(
                 (sessionId) => sessions[sessionId]?.responses[questionId] || "-"
