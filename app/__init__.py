@@ -41,17 +41,27 @@ def create_app():
     # Configuration
     app.config['CORS_HEADERS'] = 'Content-Type'
 
-    ENVIRONMENT = os.getenv("ENVIRONMENT", "production")  # Default to 'production'
+    ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
 
     if ENVIRONMENT == "experimental":
         FRONTEND_URL = "https://headway-check-in-app-1-experimental.onrender.com"
+    elif ENVIRONMENT == "development":
+        FRONTEND_URL = "http://localhost:3000"
     else:
         FRONTEND_URL = "https://headway-check-in-app-1.onrender.com"
 
-    CORS(app, resources={r"/*": {"origins": [FRONTEND_URL, "http://localhost:3000"]}}, 
+    allowed_origins = [FRONTEND_URL]
+    if ENVIRONMENT != "development" and "localhost" not in FRONTEND_URL:
+        allowed_origins.append("http://localhost:3000")
+
+    CORS(
+        app,
+        resources={r"/*": {"origins": allowed_origins}},
         supports_credentials=True,
         allow_headers=["Authorization", "Content-Type", "device-token"],
-        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    )
+
     bcrypt.init_app(app)
 
     # Register routes

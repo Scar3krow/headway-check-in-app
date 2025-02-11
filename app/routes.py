@@ -13,14 +13,14 @@ main_bp = Blueprint('main', __name__)
 db = firestore.Client()
 
 # Dynamically set the frontend URL based on the environment
-ENVIRONMENT = os.getenv("ENVIRONMENT", "production")  # Default to 'production'
+ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
 
 if ENVIRONMENT == "experimental":
     FRONTEND_URL = "https://headway-check-in-app-1-experimental.onrender.com"
+elif ENVIRONMENT == "development":
+    FRONTEND_URL = "http://localhost:3000"
 else:
     FRONTEND_URL = "https://headway-check-in-app-1.onrender.com"
-
-print(f"🔹 Running in {ENVIRONMENT} mode. Frontend URL: {FRONTEND_URL}")
 
 # ✅ Ensure API calls are handled properly
 API_PREFIXES = ("/api/", "/register", "/login", "/questions", "/submit-responses", "/past-responses")
