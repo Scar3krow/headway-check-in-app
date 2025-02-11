@@ -29,12 +29,6 @@ const ClientSessionDetailsPage = () => {
   };
 
   useEffect(() => {
-    // Both sessionId and userId must be provided; otherwise, redirect.
-    if (!sessionId || !userId) {
-      setErrorMessage("Session ID or User ID not provided. Please select a session.");
-      navigate("/client-dashboard");
-      return;
-    }
 
     const fetchData = async () => {
       try {
