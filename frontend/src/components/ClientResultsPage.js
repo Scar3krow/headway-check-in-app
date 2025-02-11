@@ -113,6 +113,7 @@ const ClientResultsPage = () => {
             sessionDates: sortedSessionIds.map((sessionId) =>
                 sessions[sessionId].date.toLocaleDateString()
             ),
+            sessionIds: sortedSessionIds
         });
 
         setSessionIds(sortedSessionIds);
@@ -149,8 +150,19 @@ const ClientResultsPage = () => {
         navigate("/clinician-dashboard");
     };
 
-    const handleSessionClick = (sessionId) => {
-        console.log(`Navigating to: /client-session-details/${userId}/${sessionId}`);
+    // ✅ Updated to correctly store session info and navigate
+    const handleSessionClick = (sessionIndex) => {
+        const sessionId = responsesTable.sessionIds[sessionIndex];
+        const sessionDate = responsesTable.sessionDates[sessionIndex];
+        const sessionData = responsesTable.rows.map((row) => ({
+            questionText: row.questionText,
+            responseValue: row.responses[sessionIndex],
+        }));
+
+        // ✅ Store session data in localStorage
+        localStorage.setItem("selectedSessionData", JSON.stringify({ sessionId, sessionDate, sessionData }));
+
+        console.log(`✅ Navigating to: /client-session-details/${userId}/${sessionId}`);
         navigate(`/client-session-details/${userId}/${sessionId}`);
     };
 
@@ -169,7 +181,7 @@ const ClientResultsPage = () => {
                             graphData={graphData}
                             firstSessionScore={graphData.datasets[0]?.data[0] || 0}
                             sessionIds={sessionIds}
-                            onSessionClick={handleSessionClick}
+                            onSessionClick={handleSessionClick} // ✅ Graph click handler updated
                         />
                     )}
                     <div className="form-actions">
