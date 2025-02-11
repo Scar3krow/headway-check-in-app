@@ -58,7 +58,7 @@ const ClientResultsPage = () => {
                 if (responsesResponse.ok) {
                     if (responseData.message === "No responses available for this user") {
                         setGraphData(null);
-                        setResponsesTable({ rows: [], sessionDates: [] });
+                        setResponsesTable({ rows: [], sessionDates: [], sessionIds: [] });
                     } else {
                         formatResponsesTable(responseData);
                     }
@@ -84,7 +84,7 @@ const ClientResultsPage = () => {
             if (!sessions[session_id]) {
                 sessions[session_id] = {
                     date: new Date(timestamp),
-                    responses: {}, 
+                    responses: {},
                 };
             }
             responses.forEach(({ question_id, response_value }) => {
@@ -95,7 +95,7 @@ const ClientResultsPage = () => {
         const sortedSessionIds = Object.keys(sessions).sort((a, b) => sessions[a].date - sessions[b].date);
 
         const allQuestionIds = new Set();
-        data.forEach(session => {
+        data.forEach((session) => {
             if (session.responses) {
                 session.responses.forEach(({ question_id }) => allQuestionIds.add(question_id));
             }
@@ -113,9 +113,10 @@ const ClientResultsPage = () => {
             sessionDates: sortedSessionIds.map((sessionId) =>
                 sessions[sessionId].date.toLocaleDateString()
             ),
-            sessionIds: sortedSessionIds
+            sessionIds: sortedSessionIds,
         });
 
+        // Also update the dedicated sessionIds state for easy access in the click handler.
         setSessionIds(sortedSessionIds);
         calculateGraphData(sortedSessionIds, sessions);
     };
@@ -150,20 +151,20 @@ const ClientResultsPage = () => {
         navigate("/clinician-dashboard");
     };
 
-    // ✅ Updated to correctly store session info and navigate
+    // UPDATED: Use the dedicated sessionIds state instead of responsesTable.sessionIds
     const handleSessionClick = (sessionIndex) => {
-        const sessionId = responsesTable.sessionIds[sessionIndex];
+        const selectedSessionId = sessionIds[sessionIndex];
         const sessionDate = responsesTable.sessionDates[sessionIndex];
         const sessionData = responsesTable.rows.map((row) => ({
             questionText: row.questionText,
             responseValue: row.responses[sessionIndex],
         }));
 
-        // ✅ Store session data in localStorage
-        localStorage.setItem("selectedSessionData", JSON.stringify({ sessionId, sessionDate, sessionData }));
+        // Store the session details in localStorage
+        localStorage.setItem("selectedSessionData", JSON.stringify({ sessionId: selectedSessionId, sessionDate, sessionData }));
 
-        console.log(`✅ Navigating to: /client-session-details/${userId}/${sessionId}`);
-        navigate(`/client-session-details/${userId}/${sessionId}`);
+        console.log(`Navigating to: /client-session-details/${userId}/${selectedSessionId}`);
+        navigate(`/client-session-details/${userId}/${selectedSessionId}`);
     };
 
     return (
@@ -181,7 +182,7 @@ const ClientResultsPage = () => {
                             graphData={graphData}
                             firstSessionScore={graphData.datasets[0]?.data[0] || 0}
                             sessionIds={sessionIds}
-                            onSessionClick={handleSessionClick} // ✅ Graph click handler updated
+                            onSessionClick={handleSessionClick}
                         />
                     )}
                     <div className="form-actions">
