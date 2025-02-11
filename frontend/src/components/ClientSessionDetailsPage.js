@@ -9,8 +9,7 @@ import { API_URL } from "../config";
 import LoadingMessage from "../components/LoadingMessage";
 
 const ClientSessionDetailsPage = () => {
-  // Expect both sessionId (the session being viewed) and userId (the client’s ID)
-  // in the URL parameters.
+  // Expect both sessionId (the session being viewed) and userId (the client’s ID) in the URL parameters.
   const { userId, sessionId } = useParams();
   const navigate = useNavigate();
 
@@ -29,6 +28,12 @@ const ClientSessionDetailsPage = () => {
   };
 
   useEffect(() => {
+    console.log("userId from URL:", userId);
+    console.log("sessionId from URL:", sessionId);
+    console.log("token:", localStorage.getItem("token"));
+    console.log("deviceToken:", localStorage.getItem("device_token"));
+    console.log("role:", localStorage.getItem("role"));
+    console.log("localUserId:", localStorage.getItem("user_id"));
 
     const fetchData = async () => {
       try {
@@ -110,24 +115,7 @@ const ClientSessionDetailsPage = () => {
     fetchData();
   }, [sessionId, userId, navigate]);
 
-  // This handler simulates what you do in clientresponsespage when a data point is clicked.
-  // Here it builds a session data object, stores it in localStorage, and navigates.
-  const handleDataPointClick = (sessionIndex) => {
-    // In this page, we have one session’s details.
-    // (If your graph has multiple sessions, you would use the index to pick the correct session.)
-    const sessionDate = new Date().toISOString(); // Replace with actual date if available.
-    const sessionData = sessionDetails.map((detail) => ({
-      questionText: questionMap[detail.question_id] || `Question ${detail.question_id}`,
-      responseValue: detail.response_value,
-    }));
-
-    localStorage.setItem("selectedSessionData", JSON.stringify({ sessionId, sessionDate, sessionData }));
-    // Navigate to the detailed session view.
-    // (If you have a separate detailed view, update this route accordingly.)
-    navigate(`/client-session-details/${userId}/${sessionId}`);
-  };
-
-  // Navigate back to the client responses (or previous) page.
+  // Navigate back to the previous page (e.g., client responses page)
   const handleBackToClientResponses = () => {
     navigate(-1);
   };
@@ -141,51 +129,24 @@ const ClientSessionDetailsPage = () => {
         <p className="no-data-message">No session details available.</p>
       )}
       {sessionDetails.length > 0 && (
-        <>
-          <div className="session-details-table-wrapper">
-            <table className="session-details-table">
-              <thead>
-                <tr>
-                  <th>Question</th>
-                  <th>Response</th>
+        <div className="session-details-table-wrapper">
+          <table className="session-details-table">
+            <thead>
+              <tr>
+                <th>Question</th>
+                <th>Response</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sessionDetails.map((detail) => (
+                <tr key={detail.question_id}>
+                  <td>{questionMap[detail.question_id] || `Question ${detail.question_id}`}</td>
+                  <td>{responseTextMap[detail.response_value] || "Unknown"}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {sessionDetails.map((detail) => (
-                  <tr key={detail.question_id}>
-                    <td>{questionMap[detail.question_id] || `Question ${detail.question_id}`}</td>
-                    <td>{responseTextMap[detail.response_value] || "Unknown"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {/* Example section showing interactive data points (e.g., from a graph).
-              Clicking on one will invoke handleDataPointClick.
-              Adjust this section to integrate your actual graph component if needed. */}
-          <div className="graph-section">
-            <h3>Session Graph (Interactive Data Points)</h3>
-            <div className="data-points-container">
-              {sessionDetails.map((detail, index) => (
-                <div
-                  key={index}
-                  className="data-point"
-                  style={{
-                    display: "inline-block",
-                    margin: "10px",
-                    padding: "10px",
-                    border: "1px solid #ccc",
-                    cursor: "pointer",
-                  }}
-                  onClick={() => handleDataPointClick(index)}
-                >
-                  {questionMap[detail.question_id] || `Question ${detail.question_id}`} :{" "}
-                  {responseTextMap[detail.response_value] || "Unknown"}
-                </div>
               ))}
-            </div>
-          </div>
-        </>
+            </tbody>
+          </table>
+        </div>
       )}
       <div className="form-actions">
         <button onClick={handleBackToClientResponses} className="dashboard-button secondary">
