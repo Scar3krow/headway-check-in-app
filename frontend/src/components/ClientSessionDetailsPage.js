@@ -11,7 +11,7 @@ import LoadingMessage from "../components/LoadingMessage";
 const ClientSessionDetailsPage = () => {
   // Expect both sessionId (the session being viewed) and userId (the client’s ID)
   // in the URL parameters.
-  const { sessionId, userId } = useParams();
+  const { userId, sessionId } = useParams();
   const navigate = useNavigate();
 
   const [sessionDetails, setSessionDetails] = useState([]);
@@ -130,7 +130,7 @@ const ClientSessionDetailsPage = () => {
     localStorage.setItem("selectedSessionData", JSON.stringify({ sessionId, sessionDate, sessionData }));
     // Navigate to the detailed session view.
     // (If you have a separate detailed view, update this route accordingly.)
-    navigate(`/client-session-details/${sessionId}/${userId}`);
+    navigate(`/client-session-details/${userId}/${sessionId}`);
   };
 
   // Navigate back to the client responses (or previous) page.
