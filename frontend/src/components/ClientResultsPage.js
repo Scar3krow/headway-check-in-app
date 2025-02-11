@@ -92,8 +92,12 @@ const ClientResultsPage = () => {
             });
         });
 
-        const sortedSessionIds = Object.keys(sessions).sort((a, b) => sessions[a].date - sessions[b].date);
+        // Get session IDs sorted by date
+        const sortedSessionIds = Object.keys(sessions).sort(
+            (a, b) => sessions[a].date - sessions[b].date
+        );
 
+        // Build table rows using all question IDs found
         const allQuestionIds = new Set();
         data.forEach((session) => {
             if (session.responses) {
@@ -110,13 +114,12 @@ const ClientResultsPage = () => {
 
         setResponsesTable({
             rows: tableRows,
-            sessionDates: sortedSessionIds.map((sessionId) =>
-                sessions[sessionId].date.toLocaleDateString()
+            sessionDates: sortedSessionIds.map(
+                (sessionId) => sessions[sessionId].date.toLocaleDateString()
             ),
             sessionIds: sortedSessionIds,
         });
 
-        // Also update the dedicated sessionIds state for easy access in the click handler.
         setSessionIds(sortedSessionIds);
         calculateGraphData(sortedSessionIds, sessions);
     };
@@ -130,7 +133,7 @@ const ClientResultsPage = () => {
         );
 
         const graphData = {
-            labels: sessionIds.map((sessionId, index) => `Session ${index + 1}`),
+            labels: sessionIds.map((_, index) => `Session ${index + 1}`),
             datasets: [
                 {
                     label: "Level of Distress",
@@ -151,17 +154,29 @@ const ClientResultsPage = () => {
         navigate("/clinician-dashboard");
     };
 
-    // UPDATED: Use the dedicated sessionIds state instead of responsesTable.sessionIds
-    const handleSessionClick = (sessionIndex) => {
-        const selectedSessionId = sessionIds[sessionIndex];
+    // Updated click handler that expects a session ID string
+    const handleSessionClick = (selectedSessionId) => {
+        console.log("handleSessionClick received:", selectedSessionId);
+        const sessionIndex = sessionIds.indexOf(selectedSessionId);
+        console.log("Current sessionIds array:", sessionIds);
+        console.log("Derived sessionIndex:", sessionIndex);
+
+        if (sessionIndex === -1) {
+            console.error("Selected session ID not found in sessionIds array.");
+            return;
+        }
+
         const sessionDate = responsesTable.sessionDates[sessionIndex];
         const sessionData = responsesTable.rows.map((row) => ({
             questionText: row.questionText,
             responseValue: row.responses[sessionIndex],
         }));
 
-        // Store the session details in localStorage
-        localStorage.setItem("selectedSessionData", JSON.stringify({ sessionId: selectedSessionId, sessionDate, sessionData }));
+        // Store session details in localStorage for later use
+        localStorage.setItem(
+            "selectedSessionData",
+            JSON.stringify({ sessionId: selectedSessionId, sessionDate, sessionData })
+        );
 
         console.log(`Navigating to: /client-session-details/${userId}/${selectedSessionId}`);
         navigate(`/client-session-details/${userId}/${selectedSessionId}`);
@@ -175,7 +190,7 @@ const ClientResultsPage = () => {
                 <>
                     <h2 className="client-dashboard-title">{`${clientName}'s Results`}</h2>
                     {errorMessage && <p className="error-message">{errorMessage}</p>}
-                    {!graphData && !responsesTable.rows.length ? (
+                    {!graphData && responsesTable.rows.length === 0 ? (
                         <p className="no-data-message">No check-ins have been completed.</p>
                     ) : (
                         <ClinicianGraph
