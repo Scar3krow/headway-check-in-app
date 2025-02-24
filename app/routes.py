@@ -2,13 +2,12 @@ import os
 import jwt
 import uuid
 from flask import Blueprint, request, jsonify, make_response, redirect
-from flask_bcrypt import Bcrypt
 from google.cloud import firestore
 from datetime import datetime, timedelta, timezone
 from firebase_admin import firestore
 from google.cloud.firestore import SERVER_TIMESTAMP
+from werkzeug.security import generate_password_hash, check_password_hash
 
-bcrypt = Bcrypt()
 main_bp = Blueprint('main', __name__)
 db = firestore.Client()
 
@@ -75,7 +74,6 @@ def catch_all(path):
     # Redirect all other routes to React
     return redirect(FRONTEND_URL)
 
-
 @main_bp.route('/register', methods=['POST'])
 def register():
     """Register a new user."""
@@ -112,15 +110,12 @@ def register():
     if role in ['clinician', 'admin']:
         if not invite_code:
             return cors_enabled_response({'message': 'Invite code is required for this role.'}, 400)
-
         try:
             invites_ref = db.collection('invites').where('invite_code', '==', invite_code).where('role', '==', role).stream()
             invite = next(invites_ref)
             invite_data = invite.to_dict()
-
             if invite_data.get('used', False):
                 return cors_enabled_response({'message': 'This invite code has already been used.'}, 400)
-
             db.collection('invites').document(invite.id).update({'used': True})
         except StopIteration:
             return cors_enabled_response({'message': 'Invalid or expired invite code.'}, 400)
@@ -128,7 +123,8 @@ def register():
     if role == 'client' and not assigned_clinician_id:
         return cors_enabled_response({'message': 'Assigned clinician ID is required for clients.'}, 400)
 
-    hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+    # Use Werkzeug’s generate_password_hash with method='scrypt'
+    hashed_password = generate_password_hash(password, method='scrypt')
     user_ref = users_ref.add({
         'first_name': first_name,
         'last_name': last_name,
@@ -157,17 +153,14 @@ def register():
             'name': f"{first_name} {last_name}"
         })
 
-    # Check for an existing Authorization header (i.e. if a user is already logged in)
     auth_header = request.headers.get('Authorization')
     extra_data = {}
     if auth_header:
-        # If an authorization header is present, instruct the frontend to log out the current user.
         extra_data = {
             'redirectTo': '/login',
             'shouldLogout': True
         }
 
-    # Return a response instructing the frontend to navigate to the login page.
     return cors_enabled_response({
         'message': 'User registered successfully',
         'role': role,
@@ -183,7 +176,6 @@ def login():
         email = data.get('email', '').strip().lower()
         password = data.get('password')
 
-        # Ensure email and password are provided.
         if not email or not password:
             return cors_enabled_response({'message': 'Email and password are required.'}, 400)
 
@@ -191,23 +183,18 @@ def login():
         user_docs = list(users_ref.where('email', '==', email).stream())
         
         if not user_docs:
-            # No user found for that email.
             return cors_enabled_response({'message': 'Invalid credentials'}, 401)
         
         user_doc = user_docs[0]
         user_data = user_doc.to_dict()
-        print("User data found for login:", user_data)  # Debug: Check document structure
+        print("User data found for login:", user_data)
 
-        # Ensure the user document contains a password field.
         if 'password' not in user_data:
             raise Exception("User document is missing the 'password' field.")
 
-        # Validate the password
-        if bcrypt.check_password_hash(user_data['password'], password):
-            # Generate a unique device token for this login session.
+        # Use Werkzeug’s check_password_hash for scrypt
+        if check_password_hash(user_data['password'], password):
             device_token = str(uuid.uuid4())
-
-            # Create JWT payload with the device token.
             token_payload = {
                 'id': user_doc.id,
                 'role': user_data['role'],
@@ -216,7 +203,6 @@ def login():
             }
             access_token = jwt.encode(token_payload, SECRET_KEY, algorithm="HS256")
 
-            # Store this session in Firestore under users/{user_id}/sessions.
             user_sessions_ref = db.collection('users').document(user_doc.id).collection('sessions')
             user_sessions_ref.document(device_token).set({
                 'device_token': device_token,
@@ -233,11 +219,10 @@ def login():
             return cors_enabled_response({'message': 'Invalid credentials'}, 401)
 
     except Exception as e:
-        # Log the exception for debugging.
         print("Exception in /login:", e)
         return cors_enabled_response({'message': 'Internal server error', 'error': str(e)}, 500)
 
-#UPDATED
+
 @main_bp.route('/questions', methods=['GET'])
 def get_questions():
     """Fetch questions based on questionnaire_id."""
@@ -253,7 +238,7 @@ def get_questions():
         print(f"Error fetching questions: {e}")
         return cors_enabled_response({'message': 'Failed to fetch questions', 'error': str(e)}, 500)
 
-#UPDATED    
+  
 @main_bp.route('/questionnaires', methods=['GET'])
 def get_questionnaires():
     """Fetch all available questionnaires."""
