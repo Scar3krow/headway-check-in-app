@@ -64,7 +64,13 @@ const Login = () => {
       }
     } catch (err) {
       if (err.response && err.response.status === 401) {
-        setError("Invalid email or password.");
+        const msg = err.response.data.message || "";
+        // Check if the message indicates that the client is archived.
+        if (msg.toLowerCase().includes("not being an active client")) {
+          setError("Unable to login because you are not an active client.");
+        } else {
+          setError("Invalid email or password.");
+        }
       } else {
         setError("An error occurred. Please try again later.");
       }

@@ -77,6 +77,10 @@ const ClinicianDataPage = () => {
         navigate("/admin-dashboard");
     };
 
+    const handleOverallData = () => {
+        navigate("/overall-data-page");
+    }
+
     return (
         <div className="form-container">
             <h2 className="form-title">Clinician Data</h2>
@@ -143,6 +147,9 @@ const ClinicianDataPage = () => {
                 )}
             </div>
             <div className="form-actions">
+                <button onClick={handleOverallData} className="dashboard-button secondary">
+                    Overall Data
+                </button>
                 <button onClick={handleBack} className="dashboard-button secondary">
                     Back to Dashboard
                 </button>

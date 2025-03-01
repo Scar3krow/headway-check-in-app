@@ -7,27 +7,52 @@ import { API_URL } from "../config";
 import LoadingMessage from "../components/LoadingMessage";
 
 const SearchResultsPage = () => {
-    const [searchResults, setSearchResults] = useState([]);
-    const [errorMessage, setErrorMessage] = useState("");
     const navigate = useNavigate();
     const location = useLocation();
-    const query = new URLSearchParams(location.search).get("query");
-    const [isLoading, setIsLoading] = useState(true);
+    const urlParams = new URLSearchParams(location.search);
+    
+    // Initialize state from URL if available.
+    const [query, setQuery] = useState(urlParams.get("query") || "");
+    const [filter, setFilter] = useState(urlParams.get("filter") || "non_archived"); // default filter
+    const [page, setPage] = useState(parseInt(urlParams.get("page") || "1", 10));
+    
+    // allResults holds the full list from the API; searchResults holds only the current page (20 clients)
+    const [allResults, setAllResults] = useState([]);
+    const [searchResults, setSearchResults] = useState([]);
+    const [errorMessage, setErrorMessage] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
 
+    // Update URL for bookmarking/sharing whenever search params change.
+    const updateURL = (q, f, p) => {
+        const params = new URLSearchParams();
+        if (q) params.set("query", q);
+        params.set("filter", f);
+        params.set("page", p);
+        navigate(`/search-results?${params.toString()}`, { replace: true });
+    };
+
+    // Fetch full search results when query or filter changes.
     useEffect(() => {
-        if (!query) return;
-
+        updateURL(query, filter, page);
+        
+        // Only fetch when a query is provided.
+        if (!query) {
+            setAllResults([]);
+            setSearchResults([]);
+            return;
+        }
+        
         const fetchSearchResults = async () => {
-            setIsLoading(true); // Start loading state
+            setIsLoading(true);
             try {
                 const token = localStorage.getItem("token");
                 const role = localStorage.getItem("role");
 
-                // ✅ Admins search all clients, Clinicians only their assigned clients
-                const searchUrl = role === "admin"
-                    ? `${API_URL}/search-all-clients?query=${query}`
-                    : `${API_URL}/search-clients?query=${query}`;
-
+                // Build search URL. (Backend may ignore page/limit, so we fetch all.)
+                const baseEndpoint = role === "admin"
+                    ? `${API_URL}/search-all-clients`
+                    : `${API_URL}/search-clients`;
+                const searchUrl = `${baseEndpoint}?query=${encodeURIComponent(query)}&filter=${filter}`;
                 const response = await fetch(searchUrl, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
@@ -35,20 +60,49 @@ const SearchResultsPage = () => {
                 if (!response.ok) throw new Error("Failed to fetch search results");
 
                 const data = await response.json();
-                setSearchResults(data.clients || []);
+                // Assume API returns { clients: [...] } with an "is_archived" flag on each client.
+                const clients = data.clients || [];
+                setAllResults(clients);
+                // Reset to first page on new search.
+                setPage(1);
             } catch (error) {
                 console.error("Error fetching search results:", error);
                 setErrorMessage("Error fetching search results. Please try again later.");
             } finally {
-                setIsLoading(false); // Hide loading state
+                setIsLoading(false);
             }
         };
 
         fetchSearchResults();
-    }, [query]);
+    }, [query, filter, navigate]);
 
-    const handleClientSelect = (clientId) => {
-        navigate(`/client-results/${clientId}`);
+    // Update the displayed searchResults based on allResults and current page.
+    useEffect(() => {
+        const startIndex = (page - 1) * 20;
+        const endIndex = page * 20;
+        setSearchResults(allResults.slice(startIndex, endIndex));
+        updateURL(query, filter, page);
+    }, [allResults, page, query, filter]);
+
+    // Updated handler: pass the full client object so we can read is_archived.
+    const handleClientSelect = (client) => {
+        const sourceParam = client.is_archived ? "archived" : "active";
+        navigate(`/client-results/${client.id}?source=${sourceParam}`);
+    };
+
+    const handleSearchSubmit = (e) => {
+        e.preventDefault();
+        // The query/filter change triggers fetch.
+    };
+
+    const handleNextPage = () => {
+        if (page * 20 < allResults.length) {
+            setPage((prevPage) => prevPage + 1);
+        }
+    };
+
+    const handlePrevPage = () => {
+        if (page > 1) setPage((prevPage) => prevPage - 1);
     };
 
     const handleBack = () => {
@@ -58,21 +112,64 @@ const SearchResultsPage = () => {
     return (
         <div className="client-dashboard-container">
             <h2 className="client-dashboard-title">Search Results</h2>
+            {/* Advanced Search Form */}
+            <form onSubmit={handleSearchSubmit} className="search-form">
+                <input
+                    type="text"
+                    placeholder="Enter client name or keyword..."
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    className="search-input"
+                />
+                <select
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value)}
+                    className="search-select"
+                >
+                    <option value="non_archived">Non-Archived</option>
+                    <option value="archived">Archived</option>
+                    <option value="all">All Clients</option>
+                </select>
+                <button type="submit" className="dashboard-button primary">
+                    Search
+                </button>
+            </form>
+
             <div className="client-dashboard-content">
                 {isLoading ? (
                     <LoadingMessage text="Searching for clients..." />
                 ) : searchResults.length > 0 ? (
-                    <ul className="search-results-list">
-                        {searchResults.map((client) => (
-                            <li
-                                key={client.id}
-                                onClick={() => handleClientSelect(client.id)}
-                                className="search-result-item"
+                    <>
+                        <ul className="search-results-list">
+                            {searchResults.map((client) => (
+                                <li
+                                    key={client.id}
+                                    onClick={() => handleClientSelect(client)}
+                                    className="search-result-item"
+                                >
+                                    {`${client.first_name} ${client.last_name}`}
+                                    {client.is_archived && <span> (Archived)</span>}
+                                </li>
+                            ))}
+                        </ul>
+                        <div className="pagination-controls">
+                            <button
+                                onClick={handlePrevPage}
+                                disabled={page <= 1}
+                                className="dashboard-button secondary"
                             >
-                                {`${client.first_name} ${client.last_name}`}
-                            </li>
-                        ))}
-                    </ul>
+                                Previous
+                            </button>
+                            <span>Page {page}</span>
+                            <button
+                                onClick={handleNextPage}
+                                disabled={page * 20 >= allResults.length}
+                                className="dashboard-button secondary"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </>
                 ) : (
                     <p className="error-message">{errorMessage || "No results found."}</p>
                 )}

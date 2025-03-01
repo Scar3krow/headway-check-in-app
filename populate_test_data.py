@@ -116,25 +116,35 @@ def create_session_for_client(user_id):
     # Create a unique session ID using timestamp and a short random hex
     session_id = f"session_{int(datetime.utcnow().timestamp() * 1000)}_{uuid.uuid4().hex[:6]}"
     timestamp = datetime.utcnow().replace(tzinfo=timezone.utc)
+    
+    # Build summary responses for each question.
+    summary_responses = []
+    for i in range(1, NUM_QUESTIONS + 1):
+        response_value = random.randint(1, 5)  # Generate a random response
+        summary_responses.append({
+            "questionnaire_id": QUESTIONNAIRE_ID,
+            "question_id": f"q{i}",
+            "response_value": response_value,
+            "timestamp": timestamp,
+        })
+    
+    # Create session data with summary_responses
     session_data = {
         "questionnaire_id": QUESTIONNAIRE_ID,
         "timestamp": timestamp,
+        "summary_responses": summary_responses
     }
     session_ref = db.collection("user_data").document(user_id).collection("sessions").document(session_id)
     session_ref.set(session_data)
-    # For each question, create a response document in the "responses" subcollection
-    for i in range(1, NUM_QUESTIONS + 1):
-        response_data = {
-            "questionnaire_id": QUESTIONNAIRE_ID,
-            "question_id": f"q{i}",
-            "response_value": random.randint(1, 5),  # Random response between 1 and 5
-            "timestamp": timestamp,
-        }
-        session_ref.collection("responses").document(f"response_{i}").set(response_data)
+    
+    # For each question, create a response document in the "responses" subcollection using the same summary data.
+    for i, response in enumerate(summary_responses, start=1):
+        response_doc_id = f"response_{i}"
+        session_ref.collection("responses").document(response_doc_id).set(response)
+    
     return session_id
 
 def populate_test_data():
-
     clinician_ids = []
     # Create clinicians (first NUM_ADMIN_CLINICIANS will be admins)
     for i in range(1, NUM_CLINICIANS + 1):

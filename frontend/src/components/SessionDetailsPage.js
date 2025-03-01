@@ -42,10 +42,10 @@ const SessionDetailsPage = () => {
           return;
         }
 
-        // ✅ Fetch Session Responses from Firestore
-        const sessionRef = `${API_URL}/user-data/${userId}/sessions/${sessionId}/responses`;
-        const [responsesResponse, questionnairesResponse] = await Promise.all([
-          fetch(sessionRef, {
+        // 🔹 Fetch Session Document (which includes summary_responses)
+        const sessionDocUrl = `${API_URL}/user-data/${userId}/sessions/${sessionId}`;
+        const [sessionResponse, questionnairesResponse] = await Promise.all([
+          fetch(sessionDocUrl, {
             headers: { 
               "Content-Type": "application/json", 
               Authorization: `Bearer ${token}`,
@@ -61,24 +61,23 @@ const SessionDetailsPage = () => {
           }),
         ]);
 
-        if (responsesResponse.status === 401 || questionnairesResponse.status === 401) {
+        if (sessionResponse.status === 401 || questionnairesResponse.status === 401) {
           throw new Error("Unauthorized access. You may not have permission.");
         }
 
-        if (!responsesResponse.ok || !questionnairesResponse.ok) {
+        if (!sessionResponse.ok || !questionnairesResponse.ok) {
           throw new Error("Failed to fetch session data.");
         }
 
-        const responsesData = await responsesResponse.json();
-        const questionnaires = await questionnairesResponse.json();
-
-        // ✅ Extract Questionnaire ID from response data
-        const questionnaireId = responsesData.length > 0 ? responsesData[0].questionnaire_id : null;
+        // The session document now contains summary_responses
+        const sessionData = await sessionResponse.json();
+        // Extract questionnaire_id from the session document
+        const questionnaireId = sessionData.questionnaire_id;
         if (!questionnaireId) {
           throw new Error("Questionnaire ID missing in session data.");
         }
 
-        // ✅ Fetch questions for the specific questionnaire
+        // Fetch questions for the specific questionnaire
         const questionsResponse = await fetch(`${API_URL}/questions?questionnaire_id=${questionnaireId}`, {
           headers: { 
             "Content-Type": "application/json", 
@@ -93,17 +92,14 @@ const SessionDetailsPage = () => {
 
         const questionsData = await questionsResponse.json();
 
-        // 📝 **Map Question IDs to Text**
+        // 📝 Map Question IDs to Text
         const qMap = questionsData.reduce((acc, question) => {
           acc[question.id] = question.text;
           return acc;
         }, {});
 
-        // ✅ Format response data
-        const formattedResponses = responsesData.map((response) => ({
-          question_id: response.question_id,
-          response_value: response.response_value,
-        }));
+        // Format response data from summary_responses (fallback to empty array if not present)
+        const formattedResponses = sessionData.summary_responses || [];
 
         setSessionDetails(formattedResponses);
         setQuestionMap(qMap);

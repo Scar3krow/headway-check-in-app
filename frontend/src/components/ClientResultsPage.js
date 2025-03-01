@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import "../styles/global.css";
 import "../styles/dashboard.css";
 import "../styles/table.css";
@@ -10,12 +10,19 @@ import LoadingMessage from "../components/LoadingMessage";
 
 const ClientResultsPage = () => {
     const { userId } = useParams();
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    // Read the 'source' query parameter from the URL; default to "active"
+    const urlParams = new URLSearchParams(location.search);
+    const sourceParam = urlParams.get("source") || "active";
+
     const [clientName, setClientName] = useState("");
+    const [isArchived, setIsArchived] = useState(false); // tracks client's archive status
     const [responsesTable, setResponsesTable] = useState({ rows: [], sessionDates: [], sessionIds: [] });
     const [graphData, setGraphData] = useState(null);
     const [sessionIds, setSessionIds] = useState([]);
     const [errorMessage, setErrorMessage] = useState("");
-    const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -30,8 +37,8 @@ const ClientResultsPage = () => {
                     return;
                 }
 
-                // Fetch client info
-                const userInfoResponse = await fetch(`${API_URL}/user-info?user_id=${userId}`, {
+                // Fetch client info, using the source parameter to target the correct collection.
+                const userInfoResponse = await fetch(`${API_URL}/user-info?user_id=${userId}&source=${sourceParam}`, {
                     headers: {
                         Authorization: `Bearer ${token}`,
                         "Device-Token": deviceToken,
@@ -44,9 +51,11 @@ const ClientResultsPage = () => {
 
                 const userInfo = await userInfoResponse.json();
                 setClientName(`${userInfo.first_name} ${userInfo.last_name}`);
+                // API returns an "is_archived" flag; we use that to set local state.
+                setIsArchived(userInfo.is_archived || false);
 
-                // Fetch past responses from Firestore
-                const responsesResponse = await fetch(`${API_URL}/past-responses?user_id=${userId}`, {
+                // Fetch past responses, including the source parameter.
+                const responsesResponse = await fetch(`${API_URL}/past-responses?user_id=${userId}&source=${sourceParam}`, {
                     headers: {
                         Authorization: `Bearer ${token}`,
                         "Device-Token": deviceToken,
@@ -74,35 +83,32 @@ const ClientResultsPage = () => {
         };
 
         fetchClientData();
-    }, [userId, navigate]);
+    }, [userId, navigate, sourceParam]);
 
     const formatResponsesTable = (data) => {
         const sessions = {};
 
+        // Iterate over each session from the API response.
         data.forEach((session) => {
-            const { session_id, timestamp, responses } = session;
+            const { session_id, timestamp, summary_responses } = session;
             if (!sessions[session_id]) {
                 sessions[session_id] = {
                     date: new Date(timestamp),
                     responses: {},
                 };
             }
-            responses.forEach(({ question_id, response_value }) => {
+            (summary_responses || []).forEach(({ question_id, response_value }) => {
                 sessions[session_id].responses[question_id] = response_value;
             });
         });
 
-        // Get session IDs sorted by date
         const sortedSessionIds = Object.keys(sessions).sort(
             (a, b) => sessions[a].date - sessions[b].date
         );
 
-        // Build table rows using all question IDs found
         const allQuestionIds = new Set();
         data.forEach((session) => {
-            if (session.responses) {
-                session.responses.forEach(({ question_id }) => allQuestionIds.add(question_id));
-            }
+            (session.summary_responses || []).forEach(({ question_id }) => allQuestionIds.add(question_id));
         });
 
         const tableRows = [...allQuestionIds].map((questionId) => ({
@@ -154,13 +160,8 @@ const ClientResultsPage = () => {
         navigate("/clinician-dashboard");
     };
 
-    // Updated click handler that expects a session ID string
     const handleSessionClick = (selectedSessionId) => {
-        console.log("handleSessionClick received:", selectedSessionId);
         const sessionIndex = sessionIds.indexOf(selectedSessionId);
-        console.log("Current sessionIds array:", sessionIds);
-        console.log("Derived sessionIndex:", sessionIndex);
-
         if (sessionIndex === -1) {
             console.error("Selected session ID not found in sessionIds array.");
             return;
@@ -172,14 +173,44 @@ const ClientResultsPage = () => {
             responseValue: row.responses[sessionIndex],
         }));
 
-        // Store session details in localStorage for later use
+        // Pass the source parameter along when navigating to session details.
         localStorage.setItem(
             "selectedSessionData",
             JSON.stringify({ sessionId: selectedSessionId, sessionDate, sessionData })
         );
+        navigate(`/client-session-details/${userId}/${selectedSessionId}?source=${sourceParam}`);
+    };
 
-        console.log(`Navigating to: /client-session-details/${userId}/${selectedSessionId}`);
-        navigate(`/client-session-details/${userId}/${selectedSessionId}`);
+    const toggleArchive = async () => {
+        const action = isArchived ? "Unarchive" : "Archive";
+        const confirmMessage = `Are you sure you want to ${action.toLowerCase()} this client?`;
+        if (!window.confirm(confirmMessage)) {
+            return;
+        }
+        try {
+            const token = localStorage.getItem("token");
+            const deviceToken = localStorage.getItem("device_token");
+            const endpoint = isArchived
+                ? `${API_URL}/unarchive-client/${userId}`
+                : `${API_URL}/archive-client/${userId}`;
+            const response = await fetch(endpoint, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                    "Device-Token": deviceToken,
+                },
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || "Operation failed.");
+            }
+            setIsArchived(!isArchived);
+            alert(`Client ${action.toLowerCase()}d successfully.`);
+        } catch (error) {
+            console.error(`${action} error:`, error);
+            alert(`${action} error: ${error.message}`);
+        }
     };
 
     return (
@@ -188,7 +219,12 @@ const ClientResultsPage = () => {
                 <LoadingMessage text="Loading client details..." />
             ) : (
                 <>
-                    <h2 className="client-dashboard-title">{`${clientName}'s Results`}</h2>
+                    <div className="client-header">
+                        <h2 className="client-dashboard-title">{`${clientName}'s Results`}</h2>
+                        <button onClick={toggleArchive} className="dashboard-button secondary">
+                            {isArchived ? "Unarchive Client" : "Archive Client"}
+                        </button>
+                    </div>
                     {errorMessage && <p className="error-message">{errorMessage}</p>}
                     {!graphData && responsesTable.rows.length === 0 ? (
                         <p className="no-data-message">No check-ins have been completed.</p>

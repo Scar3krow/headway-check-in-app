@@ -57,7 +57,8 @@ const ClientSessionDetailsPage = () => {
         }
 
         // Construct the URL for fetching session responses from the new database structure.
-        const sessionUrl = `${API_URL}/user-data/${userId}/sessions/${sessionId}/responses`;
+        // Note: This endpoint returns a session document containing summary_responses.
+        const sessionUrl = `${API_URL}/user-data/${userId}/sessions/${sessionId}`;
         const sessionResponse = await fetch(sessionUrl, {
           headers: {
             "Content-Type": "application/json",
@@ -70,13 +71,20 @@ const ClientSessionDetailsPage = () => {
           throw new Error("Failed to fetch session responses.");
         }
 
+        // The session document now contains questionnaire_id, timestamp, and summary_responses.
         const sessionData = await sessionResponse.json();
-        console.log("✅ Session responses:", sessionData);
+        console.log("✅ Session data:", sessionData);
 
-        // Determine the questionnaire ID from the response data.
-        const questionnaireId = sessionData.length > 0 ? sessionData[0].questionnaire_id : null;
+        // Determine the questionnaire ID from the session data.
+        const questionnaireId = sessionData.questionnaire_id;
         if (!questionnaireId) {
           throw new Error("Questionnaire ID missing in session data.");
+        }
+
+        // Extract summary_responses from the session data.
+        const summaryResponses = sessionData.summary_responses;
+        if (!summaryResponses || summaryResponses.length === 0) {
+          throw new Error("No session details available.");
         }
 
         // Fetch the questions for this questionnaire.
@@ -102,7 +110,8 @@ const ClientSessionDetailsPage = () => {
           return acc;
         }, {});
 
-        setSessionDetails(sessionData);
+        // Update state with summaryResponses and questionMap.
+        setSessionDetails(summaryResponses);
         setQuestionMap(qMap);
       } catch (error) {
         console.error("Error fetching session details:", error);

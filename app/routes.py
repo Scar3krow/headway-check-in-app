@@ -22,7 +22,7 @@ else:
     FRONTEND_URL = "https://headway-check-in-app-1.onrender.com"
 
 # ✅ Ensure API calls are handled properly
-API_PREFIXES = ("/api/", "/register", "/login", "/questions", "/submit-responses", "/past-responses")
+API_PREFIXES = ("/api/", "/register", "/login", "/questions", "/past-responses")
 
 SECRET_KEY = "Headway50!"  # Replace with a strong, unique key
 
@@ -170,7 +170,7 @@ def register():
 
 @main_bp.route('/login', methods=['POST'])
 def login():
-    """Login and issue a JWT tied to a specific device."""
+    """Login and issue a JWT tied to a specific device. Archived clients cannot login."""
     try:
         data = request.get_json()
         email = data.get('email', '').strip().lower()
@@ -179,11 +179,18 @@ def login():
         if not email or not password:
             return cors_enabled_response({'message': 'Email and password are required.'}, 400)
 
+        # Search for the user in the active users collection.
         users_ref = db.collection('users')
         user_docs = list(users_ref.where('email', '==', email).stream())
         
         if not user_docs:
-            return cors_enabled_response({'message': 'Invalid credentials'}, 401)
+            # If no active user is found, check in the archived users collection.
+            archived_ref = db.collection('archived_users')
+            archived_docs = list(archived_ref.where('email', '==', email).stream())
+            if archived_docs:
+                return cors_enabled_response({'message': 'Unable to login due to not being an active client.'}, 401)
+            else:
+                return cors_enabled_response({'message': 'Invalid credentials'}, 401)
         
         user_doc = user_docs[0]
         user_data = user_doc.to_dict()
@@ -192,7 +199,7 @@ def login():
         if 'password' not in user_data:
             raise Exception("User document is missing the 'password' field.")
 
-        # Use Werkzeug’s check_password_hash for scrypt
+        # Use Werkzeug's check_password_hash for scrypt
         if check_password_hash(user_data['password'], password):
             device_token = str(uuid.uuid4())
             token_payload = {
@@ -253,7 +260,7 @@ def get_questionnaires():
 
 @main_bp.route('/user-data/<user_id>/sessions/<session_id>/responses', methods=['POST'])
 def store_user_responses(user_id, session_id):
-    """Store responses inside `user_data/{user_id}/sessions/{session_id}/responses`"""
+    """Store responses inside `user_data/{user_id}/sessions/{session_id}/responses` and update session summary."""
     try:
         # 🔐 Validate token
         decoded_token, error_response, status_code = validate_token()
@@ -264,32 +271,50 @@ def store_user_responses(user_id, session_id):
         if decoded_token['id'] != user_id:
             return cors_enabled_response({'message': 'Unauthorized access'}, 403)
 
+        # 🚫 Prevent archived clients from submitting responses.
+        archived_client = db.collection("archived_users").document(user_id).get()
+        if archived_client.exists:
+            return cors_enabled_response({'message': 'Archived clients cannot submit responses'}, 403)
+
         # 📥 Get request data
         data = request.get_json()
         if not data or 'responses' not in data or not isinstance(data['responses'], list):
             return cors_enabled_response({'message': '"responses" must be a list.'}, 400)
 
         timestamp = SERVER_TIMESTAMP
-        questionnaire_id = data.get("questionnaire_id", "default_questionnaire")  # Default questionnaire if not provided
+        questionnaire_id = data.get("questionnaire_id", "default_questionnaire")  # Default if not provided
+
+        # 🔹 Build summary responses list
+        summary_responses = []
+        for response in data['responses']:
+            if 'question_id' not in response or 'response_value' not in response:
+                return cors_enabled_response({'message': 'Each response must have "question_id" and "response_value".'}, 400)
+            summary_responses.append({
+                "question_id": response["question_id"],
+                "response_value": response["response_value"],
+            })
 
         # 🔹 Reference session document
         session_ref = db.collection("user_data").document(user_id).collection("sessions").document(session_id)
 
-        # ✅ Ensure session document exists
+        # ✅ Ensure session document exists and update it with summary responses
         if not session_ref.get().exists:
             session_ref.set({
                 "questionnaire_id": questionnaire_id,
-                "timestamp": timestamp
+                "timestamp": timestamp,
+                "summary_responses": summary_responses
+            })
+        else:
+            # If the session already exists, update the summary responses field
+            session_ref.update({
+                "summary_responses": summary_responses
             })
 
         # 🔹 Reference responses subcollection
         responses_ref = session_ref.collection("responses")
 
-        # 🔹 Store each response
+        # 🔹 Store each individual response
         for response in data['responses']:
-            if 'question_id' not in response or 'response_value' not in response:
-                return cors_enabled_response({'message': 'Each response must have "question_id" and "response_value".'}, 400)
-
             response_doc_id = f"response_{response['question_id']}"
             responses_ref.document(response_doc_id).set({
                 "question_id": response["question_id"],
@@ -305,7 +330,7 @@ def store_user_responses(user_id, session_id):
 
 @main_bp.route('/past-responses', methods=['GET'])
 def past_responses():
-    """Fetch past responses for a user from `user_data/{user_id}/sessions/{session_id}/responses`."""
+    """Fetch past responses for a user from active and/or archived sessions using summary data."""
     decoded_token, error_response, status_code = validate_token()
     if error_response:
         return cors_enabled_response(error_response, status_code)
@@ -314,70 +339,63 @@ def past_responses():
     user_id = decoded_token.get('id')
     query_user_id = request.args.get('user_id')
     questionnaire_id = request.args.get('questionnaire_id', None)  # Optional filter
+    # New parameter: source can be 'active' (default), 'archived', or 'all'
+    source = request.args.get('source', 'active').strip().lower()
 
     try:
-        # ✅ **Admins can query any user (Must specify user_id)**
-        if user_role == 'admin':
+        # Role-based access control.
+        if user_role in ['admin', 'clinician']:
             if not query_user_id:
-                return cors_enabled_response({'message': 'Admin must specify a user_id'}, 400)
-
-        # ✅ **Clinicians can only query their assigned clients**
-        elif user_role == 'clinician':
-            if not query_user_id:
-                return cors_enabled_response({'message': 'Clinician must specify a user_id'}, 400)
-
-            # 🔍 **Check if user is assigned to the clinician**
-            client_doc = db.collection('users').document(query_user_id).get()
-            if not client_doc.exists or client_doc.to_dict().get('assigned_clinician_id') != user_id:
-                return cors_enabled_response({'message': 'Unauthorized: You can only view assigned clients'}, 403)
-
-        # ✅ **Clients can only access their own data**
+                return cors_enabled_response({'message': 'Must specify a user_id'}, 400)
+            if user_role == 'clinician':
+                # Use the appropriate collection based on the source parameter.
+                if source == 'archived':
+                    client_doc = db.collection('archived_users').document(query_user_id).get()
+                else:
+                    client_doc = db.collection('users').document(query_user_id).get()
+                if not client_doc.exists or client_doc.to_dict().get('assigned_clinician_id') != user_id:
+                    return cors_enabled_response({'message': 'Unauthorized'}, 403)
         elif user_role == 'client':
             if query_user_id and query_user_id != user_id:
-                return cors_enabled_response({'message': 'Unauthorized: Clients can only access their own data'}, 403)
+                return cors_enabled_response({'message': 'Unauthorized'}, 403)
             query_user_id = user_id  # Force clients to only access their own data
-
         else:
-            return cors_enabled_response({'message': 'Unauthorized: Invalid role'}, 403)
+            return cors_enabled_response({'message': 'Unauthorized'}, 403)
 
-        # 📥 **Fetch sessions for the given user_id**
-        sessions_ref = db.collection('user_data').document(query_user_id).collection('sessions')
-        sessions = sessions_ref.stream()
+        # Helper function to get sessions from a specified collection (active or archived).
+        def get_sessions_from_collection(collection_name):
+            sessions_ref = db.collection(collection_name).document(query_user_id).collection('sessions')
+            if questionnaire_id:
+                query_obj = sessions_ref.where("questionnaire_id", "==", questionnaire_id).order_by("timestamp", direction=firestore.Query.ASCENDING)
+            else:
+                query_obj = sessions_ref.order_by("timestamp", direction=firestore.Query.ASCENDING)
+            return list(query_obj.stream())
 
-        responses_list = []
+        sessions_list = []
+        if source == 'active':
+            sessions_list = get_sessions_from_collection('user_data')
+        elif source == 'archived':
+            sessions_list = get_sessions_from_collection('archived_user_data')
+        elif source == 'all':
+            active_sessions = get_sessions_from_collection('user_data')
+            archived_sessions = get_sessions_from_collection('archived_user_data')
+            sessions_list = active_sessions + archived_sessions
+            sessions_list.sort(key=lambda s: s.to_dict().get("timestamp"))
+        else:
+            return cors_enabled_response({'message': 'Invalid source parameter'}, 400)
 
-        for session in sessions:
-            session_data = session.to_dict()
-            session_id = session.id
-            session_timestamp = session_data.get("timestamp", None)
-            session_questionnaire_id = session_data.get("questionnaire_id", None)
-
-            # If a questionnaire_id filter is provided, skip sessions that don't match
-            if questionnaire_id and session_questionnaire_id != questionnaire_id:
-                continue
-
-            # 📥 **Fetch responses subcollection**
-            responses_ref = db.collection('user_data').document(query_user_id).collection('sessions').document(session_id).collection('responses')
-            responses = responses_ref.stream()
-
-            session_responses = [
-                {
-                    "question_id": r.to_dict().get("question_id"),
-                    "response_value": r.to_dict().get("response_value"),
-                    "timestamp": r.to_dict().get("timestamp"),
-                }
-                for r in responses
-            ]
-
-            responses_list.append({
-                "session_id": session_id,
-                "timestamp": session_timestamp,
-                "questionnaire_id": session_questionnaire_id,
-                "responses": session_responses
-            })
+        responses_list = [
+            {
+                "session_id": session.id,
+                "timestamp": session.to_dict().get("timestamp"),
+                "questionnaire_id": session.to_dict().get("questionnaire_id"),
+                "summary_responses": session.to_dict().get("summary_responses", [])
+            }
+            for session in sessions_list
+        ]
 
         if not responses_list:
-            return cors_enabled_response({'message': 'No responses available for this user'}, 404)
+            return cors_enabled_response({'message': 'No responses available'}, 404)
 
         return cors_enabled_response(responses_list, 200)
 
@@ -386,9 +404,9 @@ def past_responses():
         return cors_enabled_response({'message': 'Error retrieving past responses'}, 500)
 
 
-@main_bp.route('/user-data/<user_id>/sessions/<session_id>/responses', methods=['GET'])
+@main_bp.route('/user-data/<user_id>/sessions/<session_id>', methods=['GET'])
 def get_session_responses(user_id, session_id):
-    """Fetch session responses for a given session, ensuring correct role-based access control."""
+    "Fetch session responses for a given session, ensuring correct role-based access control. Supports both active and archived sessions via the 'source' parameter."
     try:
         decoded_token, error_response, status_code = validate_token()
         if error_response:
@@ -397,99 +415,69 @@ def get_session_responses(user_id, session_id):
         requestor_role = decoded_token.get('role')
         requestor_id = decoded_token.get('id')
 
-        # 🔍 **Validate session owner**
-        session_ref = db.collection("user_data").document(user_id).collection("sessions").document(session_id)
-        if not session_ref.get().exists:
+        # Determine source: "active" (default) or "archived"
+        source = request.args.get('source', 'active').strip().lower()
+        if source == "archived":
+            session_ref = db.collection("archived_user_data").document(user_id).collection("sessions").document(session_id)
+        else:
+            session_ref = db.collection("user_data").document(user_id).collection("sessions").document(session_id)
+
+        session_snapshot = session_ref.get()
+        if not session_snapshot.exists:
             return cors_enabled_response({'message': 'Session not found'}, 404)
 
-        # 🔒 **Enforce Role-Based Access Control**
+        # Enforce Role-Based Access Control
         if requestor_role == "client" and user_id != requestor_id:
             print(f"Unauthorized: Client {requestor_id} attempted to access session {session_id} (owned by {user_id})")
             return cors_enabled_response({'message': 'Unauthorized: Clients can only access their own sessions.'}, 403)
 
         if requestor_role == "clinician":
+            # When searching active sessions, check the active users collection.
+            # For archived sessions, assume clinician can view if the active user was assigned to them.
             client_doc = db.collection('users').document(user_id).get()
             if client_doc.exists:
                 assigned_clinician = client_doc.to_dict().get('assigned_clinician_id')
                 if assigned_clinician != requestor_id:
                     print(f"Unauthorized: Clinician {requestor_id} is not assigned to client {user_id}")
                     return cors_enabled_response({'message': 'Unauthorized access to session'}, 403)
+            else:
+                # If not found in active users, try archived_users.
+                client_doc = db.collection('archived_users').document(user_id).get()
+                if client_doc.exists:
+                    assigned_clinician = client_doc.to_dict().get('assigned_clinician_id')
+                    if assigned_clinician != requestor_id:
+                        print(f"Unauthorized: Clinician {requestor_id} is not assigned to archived client {user_id}")
+                        return cors_enabled_response({'message': 'Unauthorized access to session'}, 403)
 
-        # 📥 **Fetch responses from Firestore**
-        responses_ref = session_ref.collection("responses").stream()
+        # Fetch session document data.
+        session_data = session_snapshot.to_dict()
+        if not session_data:
+            return cors_enabled_response({'message': 'Session data not found'}, 404)
 
-        responses = []
-        for response_doc in responses_ref:
-            response_data = response_doc.to_dict()
-            responses.append({
-                'question_id': response_data.get('question_id'),
-                'response_value': response_data.get('response_value'),
-                'timestamp': response_data.get('timestamp'),
-                'questionnaire_id': response_data.get('questionnaire_id', "default_questionnaire")  # Default for backward compatibility
-            })
+        # Use the denormalized summary_responses field.
+        summary_responses = session_data.get('summary_responses', [])
+        questionnaire_id = session_data.get('questionnaire_id', "default_questionnaire")
+        timestamp = session_data.get('timestamp')
 
-        if not responses:
+        if not summary_responses:
             return cors_enabled_response({'message': 'No responses found for this session'}, 404)
 
-        return cors_enabled_response(responses, 200)
+        result = {
+            "questionnaire_id": questionnaire_id,
+            "timestamp": timestamp,
+            "summary_responses": summary_responses
+        }
+
+        return cors_enabled_response(result, 200)
 
     except Exception as e:
         print(f"Error fetching session responses: {e}")
         return cors_enabled_response({'message': 'Error retrieving session responses'}, 500)
-
+    
 
 @main_bp.route('/search-users', methods=['GET'])
 def search_users():
-    """Search users by first name or last name."""
-    decoded_token, error_response, status_code = validate_token()
-    if error_response:
-        return cors_enabled_response(error_response, status_code)
-
-    user_role = decoded_token.get('role') 
-    user_id = decoded_token.get('id')
-    query = request.args.get('query', '').lower()
-
-    if not query:
-        return cors_enabled_response({'message': 'Query parameter is required'}, 400)
-
-    # ✅ Admins can search all users
-    if user_role == 'admin':
-        users_ref = db.collection('users').stream()
-        matching_users = [
-            {
-                'id': user.id,
-                'first_name': user.to_dict().get('first_name', ''),
-                'last_name': user.to_dict().get('last_name', ''),
-                'role': user.to_dict().get('role', '')
-            }
-            for user in users_ref
-            if query in user.to_dict().get('first_name', '').lower() or query in user.to_dict().get('last_name', '').lower()
-        ]
-
-    # ✅ Clinicians can only search assigned clients
-    elif user_role == 'clinician':
-        assigned_clients = db.collection('users').where('assigned_clinician_id', '==', user_id).stream()
-        matching_users = [
-            {
-                'id': user.id,
-                'first_name': user.to_dict().get('first_name', ''),
-                'last_name': user.to_dict().get('last_name', ''),
-                'role': user.to_dict().get('role', '')
-            }
-            for user in assigned_clients
-            if query in user.to_dict().get('first_name', '').lower() or query in user.to_dict().get('last_name', '').lower()
-        ]
-
-    # ❌ Clients cannot search for other users
-    else:
-        return cors_enabled_response({'message': 'Unauthorized: Clients cannot search for other users'}, 403)
-
-    return cors_enabled_response(matching_users, 200)
-
-
-@main_bp.route('/search-clients', methods=['GET'])
-def search_clients():
-    """Allow clinicians and admins to search for clients."""
+    """Search users by first name or last name with filtering for archived status."""
     decoded_token, error_response, status_code = validate_token()
     if error_response:
         return cors_enabled_response(error_response, status_code)
@@ -497,34 +485,280 @@ def search_clients():
     user_role = decoded_token.get('role')
     user_id = decoded_token.get('id')
     query = request.args.get('query', '').strip().lower()
-
     if not query:
         return cors_enabled_response({'message': 'Query parameter is required'}, 400)
 
+    # Retrieve filter parameter; default to "non_archived"
+    filter_param = request.args.get('filter', 'non_archived').strip().lower()
+
+    matching_users = []
     try:
-        # ✅ Admins can search all clients
         if user_role == 'admin':
-            clients_ref = db.collection('users').where('role', '==', 'client').stream()
+            if filter_param in ['non_archived', 'active']:
+                # Search active users from the 'users' collection.
+                users_ref = db.collection('users').stream()
+                matching_users = [
+                    {
+                        'id': user.id,
+                        'first_name': user.to_dict().get('first_name', ''),
+                        'last_name': user.to_dict().get('last_name', ''),
+                        'role': user.to_dict().get('role', ''),
+                        'is_archived': False
+                    }
+                    for user in users_ref
+                    if query in user.to_dict().get('first_name', '').lower() or 
+                       query in user.to_dict().get('last_name', '').lower()
+                ]
+            elif filter_param == 'archived':
+                # Search archived users from the 'archived_users' collection.
+                archived_ref = db.collection('archived_users').stream()
+                matching_users = [
+                    {
+                        'id': user.id,
+                        'first_name': user.to_dict().get('first_name', ''),
+                        'last_name': user.to_dict().get('last_name', ''),
+                        'role': user.to_dict().get('role', ''),
+                        'is_archived': True
+                    }
+                    for user in archived_ref
+                    if query in user.to_dict().get('first_name', '').lower() or 
+                       query in user.to_dict().get('last_name', '').lower()
+                ]
+            elif filter_param == 'all':
+                # Search both active and archived users.
+                active_ref = db.collection('users').stream()
+                archived_ref = db.collection('archived_users').stream()
+                active_users = [
+                    {
+                        'id': user.id,
+                        'first_name': user.to_dict().get('first_name', ''),
+                        'last_name': user.to_dict().get('last_name', ''),
+                        'role': user.to_dict().get('role', ''),
+                        'is_archived': False
+                    }
+                    for user in active_ref
+                    if query in user.to_dict().get('first_name', '').lower() or 
+                       query in user.to_dict().get('last_name', '').lower()
+                ]
+                archived_users = [
+                    {
+                        'id': user.id,
+                        'first_name': user.to_dict().get('first_name', ''),
+                        'last_name': user.to_dict().get('last_name', ''),
+                        'role': user.to_dict().get('role', ''),
+                        'is_archived': True
+                    }
+                    for user in archived_ref
+                    if query in user.to_dict().get('first_name', '').lower() or 
+                       query in user.to_dict().get('last_name', '').lower()
+                ]
+                matching_users = active_users + archived_users
+            else:
+                return cors_enabled_response({'message': 'Invalid filter parameter'}, 400)
 
-        # ✅ Clinicians can only search their assigned clients
         elif user_role == 'clinician':
-            clients_ref = db.collection('users').where('assigned_clinician_id', '==', user_id).stream()
-
-        # ❌ Clients cannot search at all
+            # Clinicians can only search among their assigned clients.
+            if filter_param in ['non_archived', 'active']:
+                assigned_clients = db.collection('users').where('assigned_clinician_id', '==', user_id).stream()
+                matching_users = [
+                    {
+                        'id': user.id,
+                        'first_name': user.to_dict().get('first_name', ''),
+                        'last_name': user.to_dict().get('last_name', ''),
+                        'role': user.to_dict().get('role', ''),
+                        'is_archived': False
+                    }
+                    for user in assigned_clients
+                    if query in user.to_dict().get('first_name', '').lower() or 
+                       query in user.to_dict().get('last_name', '').lower()
+                ]
+            elif filter_param == 'archived':
+                assigned_clients = db.collection('archived_users').where('assigned_clinician_id', '==', user_id).stream()
+                matching_users = [
+                    {
+                        'id': user.id,
+                        'first_name': user.to_dict().get('first_name', ''),
+                        'last_name': user.to_dict().get('last_name', ''),
+                        'role': user.to_dict().get('role', ''),
+                        'is_archived': True
+                    }
+                    for user in assigned_clients
+                    if query in user.to_dict().get('first_name', '').lower() or 
+                       query in user.to_dict().get('last_name', '').lower()
+                ]
+            elif filter_param == 'all':
+                active_ref = db.collection('users').where('assigned_clinician_id', '==', user_id).stream()
+                archived_ref = db.collection('archived_users').where('assigned_clinician_id', '==', user_id).stream()
+                active_users = [
+                    {
+                        'id': user.id,
+                        'first_name': user.to_dict().get('first_name', ''),
+                        'last_name': user.to_dict().get('last_name', ''),
+                        'role': user.to_dict().get('role', ''),
+                        'is_archived': False
+                    }
+                    for user in active_ref
+                    if query in user.to_dict().get('first_name', '').lower() or 
+                       query in user.to_dict().get('last_name', '').lower()
+                ]
+                archived_users = [
+                    {
+                        'id': user.id,
+                        'first_name': user.to_dict().get('first_name', ''),
+                        'last_name': user.to_dict().get('last_name', ''),
+                        'role': user.to_dict().get('role', ''),
+                        'is_archived': True
+                    }
+                    for user in archived_ref
+                    if query in user.to_dict().get('first_name', '').lower() or 
+                       query in user.to_dict().get('last_name', '').lower()
+                ]
+                matching_users = active_users + archived_users
+            else:
+                return cors_enabled_response({'message': 'Invalid filter parameter'}, 400)
         else:
             return cors_enabled_response({'message': 'Unauthorized: Clients cannot search for other users'}, 403)
 
-        # 🔍 Filter clients matching the search query
-        matching_clients = [
-            {
-                'id': client.id,
-                'first_name': client.to_dict().get('first_name', ''),
-                'last_name': client.to_dict().get('last_name', ''),
-            }
-            for client in clients_ref
-            if query in client.to_dict().get('first_name', '').lower()
-            or query in client.to_dict().get('last_name', '').lower()
-        ]
+        return cors_enabled_response({'users': matching_users}, 200)
+
+    except Exception as e:
+        print(f"Error searching users: {e}")
+        return cors_enabled_response({'message': 'Error retrieving user search results'}, 500)
+
+
+@main_bp.route('/search-clients', methods=['GET'])
+def search_clients():
+    """Allow clinicians (and admins) to search for clients with filtering by archived status."""
+    decoded_token, error_response, status_code = validate_token()
+    if error_response:
+        return cors_enabled_response(error_response, status_code)
+
+    user_role = decoded_token.get('role')
+    user_id = decoded_token.get('id')
+    query = request.args.get('query', '').strip().lower()
+    if not query:
+        return cors_enabled_response({'message': 'Query parameter is required'}, 400)
+
+    # Retrieve the filter parameter; default to "non_archived"
+    filter_param = request.args.get('filter', 'non_archived').strip().lower()
+
+    try:
+        matching_clients = []
+        if user_role == 'admin':
+            # For admins, search among all clients without assignment restrictions.
+            if filter_param in ['non_archived', 'active']:
+                clients_ref = db.collection('users').where('role', '==', 'client').stream()
+                matching_clients = [
+                    {
+                        'id': client.id,
+                        'first_name': client.to_dict().get('first_name', ''),
+                        'last_name': client.to_dict().get('last_name', ''),
+                        'is_archived': False
+                    }
+                    for client in clients_ref
+                    if query in client.to_dict().get('first_name', '').lower() or
+                       query in client.to_dict().get('last_name', '').lower()
+                ]
+            elif filter_param == 'archived':
+                archived_ref = db.collection('archived_users').stream()
+                matching_clients = [
+                    {
+                        'id': client.id,
+                        'first_name': client.to_dict().get('first_name', ''),
+                        'last_name': client.to_dict().get('last_name', ''),
+                        'is_archived': True
+                    }
+                    for client in archived_ref
+                    if query in client.to_dict().get('first_name', '').lower() or
+                       query in client.to_dict().get('last_name', '').lower()
+                ]
+            elif filter_param == 'all':
+                active_ref = db.collection('users').where('role', '==', 'client').stream()
+                archived_ref = db.collection('archived_users').stream()
+                active_clients = [
+                    {
+                        'id': client.id,
+                        'first_name': client.to_dict().get('first_name', ''),
+                        'last_name': client.to_dict().get('last_name', ''),
+                        'is_archived': False
+                    }
+                    for client in active_ref
+                    if query in client.to_dict().get('first_name', '').lower() or
+                       query in client.to_dict().get('last_name', '').lower()
+                ]
+                archived_clients = [
+                    {
+                        'id': client.id,
+                        'first_name': client.to_dict().get('first_name', ''),
+                        'last_name': client.to_dict().get('last_name', ''),
+                        'is_archived': True
+                    }
+                    for client in archived_ref
+                    if query in client.to_dict().get('first_name', '').lower() or
+                       query in client.to_dict().get('last_name', '').lower()
+                ]
+                matching_clients = active_clients + archived_clients
+            else:
+                return cors_enabled_response({'message': 'Invalid filter parameter'}, 400)
+
+        elif user_role == 'clinician':
+            # Clinicians can only search among their assigned clients.
+            if filter_param in ['non_archived', 'active']:
+                clients_ref = db.collection('users').where('assigned_clinician_id', '==', user_id).stream()
+                matching_clients = [
+                    {
+                        'id': client.id,
+                        'first_name': client.to_dict().get('first_name', ''),
+                        'last_name': client.to_dict().get('last_name', ''),
+                        'is_archived': False
+                    }
+                    for client in clients_ref
+                    if query in client.to_dict().get('first_name', '').lower() or
+                       query in client.to_dict().get('last_name', '').lower()
+                ]
+            elif filter_param == 'archived':
+                archived_ref = db.collection('archived_users').where('assigned_clinician_id', '==', user_id).stream()
+                matching_clients = [
+                    {
+                        'id': client.id,
+                        'first_name': client.to_dict().get('first_name', ''),
+                        'last_name': client.to_dict().get('last_name', ''),
+                        'is_archived': True
+                    }
+                    for client in archived_ref
+                    if query in client.to_dict().get('first_name', '').lower() or
+                       query in client.to_dict().get('last_name', '').lower()
+                ]
+            elif filter_param == 'all':
+                active_ref = db.collection('users').where('assigned_clinician_id', '==', user_id).stream()
+                archived_ref = db.collection('archived_users').where('assigned_clinician_id', '==', user_id).stream()
+                active_clients = [
+                    {
+                        'id': client.id,
+                        'first_name': client.to_dict().get('first_name', ''),
+                        'last_name': client.to_dict().get('last_name', ''),
+                        'is_archived': False
+                    }
+                    for client in active_ref
+                    if query in client.to_dict().get('first_name', '').lower() or
+                       query in client.to_dict().get('last_name', '').lower()
+                ]
+                archived_clients = [
+                    {
+                        'id': client.id,
+                        'first_name': client.to_dict().get('first_name', ''),
+                        'last_name': client.to_dict().get('last_name', ''),
+                        'is_archived': True
+                    }
+                    for client in archived_ref
+                    if query in client.to_dict().get('first_name', '').lower() or
+                       query in client.to_dict().get('last_name', '').lower()
+                ]
+                matching_clients = active_clients + archived_clients
+            else:
+                return cors_enabled_response({'message': 'Invalid filter parameter'}, 400)
+        else:
+            return cors_enabled_response({'message': 'Unauthorized: Clients cannot search for other users'}, 403)
 
         return cors_enabled_response({'clients': matching_clients}, 200)
 
@@ -535,32 +769,82 @@ def search_clients():
 
 @main_bp.route('/search-all-clients', methods=['GET'])
 def search_all_clients():
-    """Admin search for all clients."""
+    """Admin search for all clients with filtering for archived vs. non-archived clients using smart matching."""
     decoded_token, error_response, status_code = validate_token()
     if error_response:
         return cors_enabled_response(error_response, status_code)
 
-    # ✅ Only admins can use this route
     if decoded_token.get('role') != "admin":
         return cors_enabled_response({'message': 'Unauthorized: Only admins can search all clients'}, 403)
 
+    # Get the query and filter parameters.
     query = request.args.get('query', '').strip().lower()
     if not query:
         return cors_enabled_response({'message': 'Query parameter is required'}, 400)
+    
+    filter_param = request.args.get('filter', 'non_archived').strip().lower()
+
+    # Split the query into tokens for partial matching.
+    tokens = query.split()
 
     try:
-        # 🔍 Fetch all clients from Firestore
-        users_ref = db.collection('users').where('role', '==', 'client').stream()
-        matching_clients = [
-            {
-                'id': user.id,
-                'first_name': user.to_dict().get('first_name', ''),
-                'last_name': user.to_dict().get('last_name', '')
-            }
-            for user in users_ref
-            if query in user.to_dict().get('first_name', '').lower()
-            or query in user.to_dict().get('last_name', '').lower()
-        ]
+        matching_clients = []
+
+        # Helper function: returns True if every token is found in the client's combined name.
+        def match_client(user):
+            data = user.to_dict()
+            combined = (data.get('first_name', '') + " " + data.get('last_name', '')).lower()
+            return all(token in combined for token in tokens)
+
+        if filter_param in ['non_archived', 'active']:
+            # Search active clients from the "users" collection.
+            users_ref = db.collection('users').where('role', '==', 'client').stream()
+            matching_clients = [
+                {
+                    'id': user.id,
+                    'first_name': user.to_dict().get('first_name', ''),
+                    'last_name': user.to_dict().get('last_name', ''),
+                    'is_archived': False
+                }
+                for user in users_ref if match_client(user)
+            ]
+        elif filter_param == 'archived':
+            # Search archived clients from the "archived_users" collection.
+            archived_ref = db.collection('archived_users').stream()
+            matching_clients = [
+                {
+                    'id': user.id,
+                    'first_name': user.to_dict().get('first_name', ''),
+                    'last_name': user.to_dict().get('last_name', ''),
+                    'is_archived': True
+                }
+                for user in archived_ref if match_client(user)
+            ]
+        elif filter_param == 'all':
+            # Search both active and archived clients.
+            active_ref = db.collection('users').where('role', '==', 'client').stream()
+            archived_ref = db.collection('archived_users').stream()
+            active_clients = [
+                {
+                    'id': user.id,
+                    'first_name': user.to_dict().get('first_name', ''),
+                    'last_name': user.to_dict().get('last_name', ''),
+                    'is_archived': False
+                }
+                for user in active_ref if match_client(user)
+            ]
+            archived_clients = [
+                {
+                    'id': user.id,
+                    'first_name': user.to_dict().get('first_name', ''),
+                    'last_name': user.to_dict().get('last_name', ''),
+                    'is_archived': True
+                }
+                for user in archived_ref if match_client(user)
+            ]
+            matching_clients = active_clients + archived_clients
+        else:
+            return cors_enabled_response({'message': 'Invalid filter parameter'}, 400)
 
         return cors_enabled_response({'clients': matching_clients}, 200)
 
@@ -569,23 +853,42 @@ def search_all_clients():
         return cors_enabled_response({'message': 'Error retrieving all client search results'}, 500)
 
 
+
 @main_bp.route('/user-info', methods=['GET'])
 def get_user_info():
-    """Fetch user information by user_id."""
+    """Fetch user information by user_id, optionally from the archived collection."""
     user_id = request.args.get('user_id')
     if not user_id:
         return cors_enabled_response({'message': 'User ID is required'}, 400)
 
-    user_doc = db.collection('users').document(user_id).get()
+    # Determine the initial collection based on the source parameter.
+    source = request.args.get('source', 'active').strip().lower()
+    if source == 'archived':
+        collection_name = 'archived_users'
+        is_archived = True
+    else:
+        collection_name = 'users'
+        is_archived = False
 
-    if not user_doc.exists:
+    user_doc = db.collection(collection_name).document(user_id).get()
+
+    # If not found in active and source is active, try the archived collection.
+    if not user_doc.exists and source == 'active':
+        archived_doc = db.collection('archived_users').document(user_id).get()
+        if archived_doc.exists:
+            user_doc = archived_doc
+            is_archived = True
+        else:
+            return cors_enabled_response({'message': 'User not found'}, 404)
+    elif not user_doc.exists:
         return cors_enabled_response({'message': 'User not found'}, 404)
 
     user_data = user_doc.to_dict()
     return cors_enabled_response({
         'first_name': user_data.get('first_name', ''),
         'last_name': user_data.get('last_name', ''),
-        'email': user_data.get('email', '')
+        'email': user_data.get('email', ''),
+        'is_archived': is_archived
     }, 200)
 
 
@@ -736,6 +1039,8 @@ def get_admins():
     except Exception as e:
         return cors_enabled_response({"message": "Failed to fetch admins", "error": str(e)}, 500)
 
+
+#NEEDS TO BE UPDATED TO USE APPROPRIATE SEARCH FILTERS + SPED UP
 @main_bp.route('/clinician-data', methods=['GET'])
 def get_clinician_data():
     """Fetch clinician data for analysis based on the new Firestore structure."""
@@ -845,6 +1150,157 @@ def get_clinician_data():
         print(f"Error in /clinician-data: {e}")
         return cors_enabled_response({'message': 'Failed to fetch clinician data.', 'error': str(e)}, 500)
 
+
+from datetime import datetime, timedelta, timezone
+
+@main_bp.route('/overall-data', methods=['GET'])
+def overall_data():
+    """
+    Calculate overall metrics for all clients (active and archived) across all clinicians:
+      - % of clients improved
+      - % of clients clinically significantly improved
+      - % of clients improved in the past 6 months
+      - % of clients clinically significantly improved in the past 6 months
+    Accessible only by admins.
+    Uses batch read operations to speed up retrieval.
+    """
+    decoded_token, error_response, status_code = validate_token()
+    if error_response:
+        return cors_enabled_response(error_response, status_code)
+    
+    if decoded_token.get('role') != "admin":
+        return cors_enabled_response({'message': 'Unauthorized: Only admins can access overall data'}, 403)
+    
+    try:
+        # Query active clients from 'users' collection.
+        active_clients_stream = db.collection('users').where('role', '==', 'client').stream()
+        active_clients = []
+        for client in active_clients_stream:
+            data = client.to_dict()
+            data['user_id'] = client.id
+            data['is_archived'] = False
+            active_clients.append(data)
+        
+        # Query archived clients from 'archived_users' collection.
+        archived_clients_stream = db.collection('archived_users').stream()
+        archived_clients = []
+        for client in archived_clients_stream:
+            data = client.to_dict()
+            data['user_id'] = client.id
+            data['is_archived'] = True
+            archived_clients.append(data)
+        
+        # Combine both lists.
+        clients = active_clients + archived_clients
+        total_clients = len(clients)
+        
+        if total_clients == 0:
+            return cors_enabled_response({
+                'total_clients': 0,
+                'percent_improved': 0,
+                'percent_clinically_significant': 0,
+                'percent_improved_last_6_months': 0,
+                'percent_clinically_significant_last_6_months': 0,
+            }, 200)
+        
+        # Helper function: use batch reads to fetch sessions and, if needed, responses.
+        def calculate_scores_for_client(user_id, is_archived):
+            """
+            Retrieve all sessions for a client from the appropriate collection using batch reads.
+            Returns a tuple of:
+              (initial_score, latest_score, latest_session_timestamp)
+            If fewer than 2 sessions are found, returns (None, None, None).
+            """
+            try:
+                collection = "user_data" if not is_archived else "archived_user_data"
+                sessions_coll = db.collection(collection).document(user_id).collection("sessions")
+                # List all session document references.
+                session_doc_refs = list(sessions_coll.list_documents())
+                if not session_doc_refs:
+                    return None, None, None
+                # Batch read all session documents.
+                sessions = db.get_all(session_doc_refs)
+                session_scores = []
+                for session in sessions:
+                    session_data = session.to_dict()
+                    timestamp = session_data.get("timestamp")
+                    # Try to use precomputed summary_responses first.
+                    responses = session_data.get("summary_responses")
+                    if responses:
+                        try:
+                            # Convert each response value to float.
+                            values = [float(r.get('response_value', 0)) for r in responses]
+                        except Exception as ex:
+                            values = []
+                    else:
+                        # If summary_responses is not available, batch-read the responses subcollection.
+                        responses_coll = sessions_coll.document(session.id).collection("responses")
+                        response_refs = list(responses_coll.list_documents())
+                        responses_docs = db.get_all(response_refs)
+                        values = []
+                        for resp in responses_docs:
+                            r_data = resp.to_dict()
+                            if 'response_value' in r_data:
+                                try:
+                                    values.append(float(r_data.get('response_value')))
+                                except:
+                                    continue
+                    if values:
+                        total_score = sum(values) - 10  # Adjust as per your scaling.
+                        session_scores.append({"timestamp": timestamp, "score": total_score})
+                session_scores.sort(key=lambda x: x["timestamp"])
+                if len(session_scores) < 2:
+                    return None, None, None
+                return session_scores[0]["score"], session_scores[-1]["score"], session_scores[-1]["timestamp"]
+            except Exception as e:
+                print(f"Error fetching scores for {user_id}: {e}")
+                return None, None, None
+
+        def is_clinically_significant(initial, latest):
+            """Determine if a client shows clinically significant improvement."""
+            return initial is not None and initial > 18 and (initial - latest) >= 12
+
+        def is_recent(timestamp):
+            """Check if the timestamp is within the past 6 months."""
+            six_months_ago = datetime.utcnow().replace(tzinfo=timezone.utc) - timedelta(days=182)
+            return timestamp and timestamp >= six_months_ago
+
+        improved = 0
+        clinically_significant = 0
+        improved_last_6 = 0
+        clinically_significant_last_6 = 0
+
+        for client in clients:
+            initial, latest, last_ts = calculate_scores_for_client(client['user_id'], client['is_archived'])
+            if initial is not None and latest is not None:
+                if latest < initial:
+                    improved += 1
+                if is_clinically_significant(initial, latest):
+                    clinically_significant += 1
+                if is_recent(last_ts):
+                    if latest < initial:
+                        improved_last_6 += 1
+                    if is_clinically_significant(initial, latest):
+                        clinically_significant_last_6 += 1
+
+        percent_improved = (improved / total_clients) * 100 if total_clients > 0 else 0
+        percent_clinically_significant = (clinically_significant / total_clients) * 100 if total_clients > 0 else 0
+        percent_improved_last_6 = (improved_last_6 / total_clients) * 100 if total_clients > 0 else 0
+        percent_clinically_significant_last_6 = (clinically_significant_last_6 / total_clients) * 100 if total_clients > 0 else 0
+
+        return cors_enabled_response({
+            'total_clients': total_clients,
+            'percent_improved': percent_improved,
+            'percent_clinically_significant': percent_clinically_significant,
+            'percent_improved_last_6_months': percent_improved_last_6,
+            'percent_clinically_significant_last_6_months': percent_clinically_significant_last_6
+        }, 200)
+
+    except Exception as e:
+        print(f"Error calculating overall data: {e}")
+        return cors_enabled_response({'message': 'Error calculating overall data', 'error': str(e)}, 500)
+
+
     
 @main_bp.route('/logout-device', methods=['POST'])
 def logout_device():
@@ -894,53 +1350,211 @@ def logout_all():
 
     return cors_enabled_response({'message': 'Logged out from all devices'}, 200)
 
+@main_bp.route('/archive-client/<user_id>', methods=['POST'])
+def archive_client(user_id):
+    """
+    Archive a client by moving their data from active collections (users and user_data)
+    to archived collections (archived_users and archived_user_data). Once moved, the original
+    documents are deleted. This version uses Firestore batch writes to minimize network round-trips.
+    """
+    try:
+        # Validate token and role.
+        decoded_token, error_response, status_code = validate_token()
+        if error_response:
+            return error_response
 
-"""@main_bp.route('/forgot-password', methods=['POST'])
-def forgot_password():
-    ""Handle forgotten password request by sending a reset link.""
-    data = request.json
-    email = data.get('email')
+        requestor_role = decoded_token.get('role')
+        if requestor_role not in ['clinician', 'admin']:
+            return cors_enabled_response(
+                {'message': 'Unauthorized: Only clinicians and admins can archive clients.'},
+                403
+            )
 
-    user_ref = db.collection('users').where('email', '==', email).get()
-    if not user_ref:
-        return cors_enabled_response({'message': 'If this email exists, a reset link will be sent.'}, 200)
+        # Set up batching.
+        BATCH_LIMIT = 500
+        op_count = 0
+        batch = db.batch()
 
-    user = user_ref[0]
-    reset_token = str(uuid.uuid4())
-    db.collection('password_resets').add({
-        'email': email,
-        'token': reset_token,
-        'expires_at': datetime.utcnow() + timedelta(minutes=0)
-    })
+        def commit_batch_if_needed():
+            nonlocal op_count, batch
+            if op_count >= BATCH_LIMIT:
+                batch.commit()
+                batch = db.batch()
+                op_count = 0
 
-    # 🔥 Send reset email (Implement actual email logic in send_reset_email)
-    send_reset_email(email, reset_token)
+        # 1. Archive the client's basic info from "users" to "archived_users".
+        client_ref = db.collection("users").document(user_id)
+        client_snapshot = client_ref.get()
+        if not client_snapshot.exists:
+            return cors_enabled_response({'message': 'Client not found.'}, 404)
+        client_data = client_snapshot.to_dict()
+        archived_user_ref = db.collection("archived_users").document(user_id)
+        batch.set(archived_user_ref, client_data)
+        op_count += 1
+        commit_batch_if_needed()
+        batch.delete(client_ref)
+        op_count += 1
+        commit_batch_if_needed()
+        print(f"Archived client basic info for user {user_id}.")
 
-    return cors_enabled_response({'message': 'If this email exists, a reset link will be sent.'}, 200)
+        # 2. Archive the client's data from "user_data" to "archived_user_data".
+        # Note: The parent document in user_data may not exist even if subcollections (sessions) do.
+        user_data_ref = db.collection("user_data").document(user_id)
+        archived_user_data_ref = db.collection("archived_user_data").document(user_id)
+        # Create/update the archived document with minimal metadata.
+        batch.set(archived_user_data_ref, {"archived_at": firestore.SERVER_TIMESTAMP}, merge=True)
+        op_count += 1
+        commit_batch_if_needed()
+
+        # Process the sessions subcollection.
+        sessions = list(user_data_ref.collection("sessions").stream())
+        print(f"Found {len(sessions)} sessions for user {user_id}.")
+        for session in sessions:
+            session_data = session.to_dict()
+            session_id = session.id
+            archived_session_ref = archived_user_data_ref.collection("sessions").document(session_id)
+            batch.set(archived_session_ref, session_data)
+            op_count += 1
+            commit_batch_if_needed()
+
+            # Process each response in the session's "responses" subcollection.
+            responses = list(session.reference.collection("responses").stream())
+            print(f"Session {session_id} has {len(responses)} responses.")
+            for response in responses:
+                response_data = response.to_dict()
+                response_id = response.id
+                batch.set(archived_session_ref.collection("responses").document(response_id), response_data)
+                op_count += 1
+                commit_batch_if_needed()
+                batch.delete(response.reference)
+                op_count += 1
+                commit_batch_if_needed()
+            # Delete the original session document.
+            batch.delete(session.reference)
+            op_count += 1
+            commit_batch_if_needed()
+
+        # Delete the top-level user_data document if it exists.
+        if user_data_ref.get().exists:
+            batch.delete(user_data_ref)
+            op_count += 1
+            commit_batch_if_needed()
+
+        # Commit any remaining operations.
+        if op_count > 0:
+            batch.commit()
+
+        return cors_enabled_response({'message': 'Client archived successfully.'}, 200)
+
+    except Exception as e:
+        print(f"Error archiving client {user_id}: {e}")
+        return cors_enabled_response({'message': 'Error archiving client.', 'error': str(e)}, 500)
 
 
-@main_bp.route('/reset-password', methods=['POST'])
-def reset_password():
-    ""Reset the user's password using a valid reset token.""
-    data = request.json
-    token = data.get('token')
-    new_password = data.get('password')
+@main_bp.route('/unarchive-client/<user_id>', methods=['POST'])
+def unarchive_client(user_id):
+    """
+    Unarchive a client by moving their data from archived collections (archived_users and archived_user_data)
+    back to active collections (users and user_data). Once moved, the archived documents are deleted.
+    This version uses Firestore batch writes to minimize network calls.
+    """
+    try:
+        # Validate token and ensure only clinicians or admins can perform unarchiving.
+        decoded_token, error_response, status_code = validate_token()
+        if error_response:
+            return error_response
 
-    # 🔍 Validate the token
-    reset_ref = db.collection('password_resets').where('token', '==', token).get()
-    if not reset_ref or reset_ref[0].to_dict()['expires_at'] < datetime.utcnow():
-        return cors_enabled_response({'message': 'Invalid or expired token.'}, 400)
+        requestor_role = decoded_token.get('role')
+        if requestor_role not in ['clinician', 'admin']:
+            return cors_enabled_response(
+                {'message': 'Unauthorized: Only clinicians and admins can unarchive clients.'},
+                403
+            )
 
-    reset_data = reset_ref[0].to_dict()
-    email = reset_data['email']
+        # Set up batching
+        BATCH_LIMIT = 500
+        op_count = 0
+        batch = db.batch()
 
-    # 🔍 Find user by email
-    user_ref = db.collection('users').where('email', '==', email).get()
-    if not user_ref:
-        return cors_enabled_response({'message': 'User not found.'}, 404)
+        def commit_batch_if_needed():
+            nonlocal op_count, batch
+            if op_count >= BATCH_LIMIT:
+                batch.commit()
+                batch = db.batch()
+                op_count = 0
 
-    # 🔒 Securely hash the new password
-    hashed_password = bcrypt.generate_password_hash(new_password).decode('utf-8')
-    db.collection('users').document(user_ref[0].id).update({'password': hashed_password})
+        # 1. Unarchive the client's basic info: Move from archived_users to users.
+        archived_user_ref = db.collection("archived_users").document(user_id)
+        archived_user_snapshot = archived_user_ref.get()
+        if not archived_user_snapshot.exists:
+            return cors_enabled_response({'message': 'Archived client not found.'}, 404)
 
-    return cors_enabled_response({'message': 'Password updated successfully.'}, 200) """
+        client_data = archived_user_snapshot.to_dict()
+        active_user_ref = db.collection("users").document(user_id)
+        batch.set(active_user_ref, client_data)
+        op_count += 1
+        commit_batch_if_needed()
+        batch.delete(archived_user_ref)
+        op_count += 1
+        commit_batch_if_needed()
+        print(f"Unarchived client basic info for user {user_id}.")
+
+        # 2. Unarchive the client's data: Move from archived_user_data to user_data.
+        archived_user_data_ref = db.collection("archived_user_data").document(user_id)
+        archived_user_data_snapshot = archived_user_data_ref.get()
+        active_user_data_ref = db.collection("user_data").document(user_id)
+        
+        if archived_user_data_snapshot.exists:
+            user_data = archived_user_data_snapshot.to_dict()
+            # Copy top-level fields from the archived document to the active document.
+            batch.set(active_user_data_ref, user_data)
+            op_count += 1
+            commit_batch_if_needed()
+            print(f"Copied top-level archived_user_data for user {user_id}.")
+
+            # Process each session in the archived_user_data subcollection.
+            sessions = list(archived_user_data_ref.collection("sessions").stream())
+            print(f"Found {len(sessions)} sessions in archived data for user {user_id}.")
+            for session in sessions:
+                session_data = session.to_dict()
+                session_id = session.id
+                active_session_ref = active_user_data_ref.collection("sessions").document(session_id)
+                batch.set(active_session_ref, session_data)
+                op_count += 1
+                commit_batch_if_needed()
+                print(f"Unarchived session {session_id} for user {user_id}.")
+
+                # Process the responses subcollection under each session.
+                responses = list(session.reference.collection("responses").stream())
+                print(f"Session {session_id} has {len(responses)} responses in archived data.")
+                for response in responses:
+                    response_data = response.to_dict()
+                    response_id = response.id
+                    batch.set(active_session_ref.collection("responses").document(response_id), response_data)
+                    op_count += 1
+                    commit_batch_if_needed()
+                    batch.delete(response.reference)
+                    op_count += 1
+                    commit_batch_if_needed()
+                # Delete the archived session document.
+                batch.delete(session.reference)
+                op_count += 1
+                commit_batch_if_needed()
+
+            # Delete the top-level archived_user_data document.
+            batch.delete(archived_user_data_ref)
+            op_count += 1
+            commit_batch_if_needed()
+            print(f"Deleted archived_user_data for user {user_id}.")
+        else:
+            print(f"No archived user_data found for user {user_id}.")
+
+        if op_count > 0:
+            batch.commit()
+
+        return cors_enabled_response({'message': 'Client unarchived successfully.'}, 200)
+
+    except Exception as e:
+        print(f"Error unarchiving client {user_id}: {e}")
+        return cors_enabled_response({'message': 'Error unarchiving client.', 'error': str(e)}, 500)
+

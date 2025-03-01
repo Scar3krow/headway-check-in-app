@@ -62,43 +62,44 @@ const ClientResponsesPage = () => {
 
     const formatResponsesTable = (data) => {
         const sessions = {};
-
+    
         data.forEach((session) => {
-            const { session_id, timestamp, responses } = session;
+            // Destructure to get the new field summary_responses
+            const { session_id, timestamp, summary_responses } = session;
             if (!sessions[session_id]) {
                 sessions[session_id] = {
                     date: new Date(timestamp),
                     responses: {},
                 };
             }
-
-            // ✅ Ensure responses are properly extracted from Firestore subcollection
-            responses.forEach(({ question_id, response_value }) => {
+    
+            // Use summary_responses (fallback to empty array if undefined)
+            (summary_responses || []).forEach(({ question_id, response_value }) => {
                 sessions[session_id].responses[question_id] = response_value;
             });
         });
-
-        // ✅ Sort session IDs by timestamp
+    
+        // Sort session IDs by timestamp
         const sortedSessionIds = Object.keys(sessions).sort(
             (a, b) => sessions[a].date - sessions[b].date
         );
-
-        // ✅ Extract all unique question IDs across all sessions
+    
+        // Extract all unique question IDs across all sessions using summary_responses
         const allQuestionIds = new Set();
         data.forEach(session => {
-            session.responses.forEach(response => {
+            (session.summary_responses || []).forEach(response => {
                 allQuestionIds.add(response.question_id);
             });
         });
-
-        // ✅ Format data into table rows with question text & responses
+    
+        // Format data into table rows with question text & responses
         const tableRows = [...allQuestionIds].map((questionId) => ({
             questionText: `Question ${questionId}`, // Placeholder; replace if needed
             responses: sortedSessionIds.map(
                 (sessionId) => sessions[sessionId]?.responses[questionId] || "-"
             ),
         }));
-
+    
         setResponsesTable({
             rows: tableRows,
             sessionDates: sortedSessionIds.map(
@@ -106,7 +107,7 @@ const ClientResponsesPage = () => {
             ),
             sessionIds: sortedSessionIds,
         });
-
+    
         calculateGraphData(sortedSessionIds, sessions);
     };
 

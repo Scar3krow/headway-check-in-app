@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/global.css"; // Consolidated global styles
 import "../styles/dashboard.css"; // Dashboard-specific styles
@@ -11,8 +11,10 @@ import LoadingMessage from "../components/LoadingMessage";
 const ClinicianDashboard = () => {
     const [searchQuery, setSearchQuery] = useState("");
     const [clientOptions, setClientOptions] = useState([]);
+    const [visibleOptionsCount, setVisibleOptionsCount] = useState(15);
     const [isAdmin, setIsAdmin] = useState(false);
     const navigate = useNavigate();
+    const dropdownRef = useRef(null);
 
     useEffect(() => {
         // 🔥 **Detect if Logged-in User is an Admin**
@@ -23,40 +25,45 @@ const ClinicianDashboard = () => {
     const [isLoading, setIsLoading] = useState(false);
 
     const handleSearchChange = async (e) => {
-        const query = e.target.value.trim().toLowerCase();
-        setSearchQuery(query);
-
-        if (query.length < 2) {
+        const inputValue = e.target.value; // use raw input so spaces are preserved
+        setSearchQuery(inputValue);
+    
+        // Use trimmed value only for length check:
+        if (inputValue.trim().length < 2) {
             setClientOptions([]);
             return;
         }
-
+    
         setIsLoading(true);
-
+    
         try {
             const token = localStorage.getItem("token");
             const deviceToken = localStorage.getItem("device_token");
-
-            // ✅ Admins Search All Clients, Clinicians Only Search Their Own
+    
+            // Lowercase and encode the input value for the query parameter.
+            const queryParam = encodeURIComponent(inputValue.toLowerCase());
             const searchUrl = isAdmin
-                ? `${API_URL}/search-all-clients?query=${query}`
-                : `${API_URL}/search-clients?query=${query}`;
-
+                ? `${API_URL}/search-all-clients?query=${queryParam}`
+                : `${API_URL}/search-clients?query=${queryParam}`;
+    
             const response = await fetch(searchUrl, {
                 headers: {
                     Authorization: `Bearer ${token}`,
-                    "Device-Token": deviceToken, // 🔐 Secure API Request
+                    "Device-Token": deviceToken,
                 },
             });
-
+    
             if (!response.ok) throw new Error("Failed to fetch client options");
-
+    
             const data = await response.json();
+            // Expect data.clients to include an "is_archived" flag.
             setClientOptions(data.clients);
+            // Reset visible options count when new search occurs.
+            setVisibleOptionsCount(15);
         } catch (error) {
             console.error("Error fetching client options:", error);
         } finally {
-            setIsLoading(false); // Hide loading indicator
+            setIsLoading(false);
         }
     };
 
@@ -71,8 +78,11 @@ const ClinicianDashboard = () => {
         }
     };
 
-    const handleClientSelect = (clientId) => {
-        navigate(`/client-results/${clientId}`);
+    // Update the handler to receive the entire client object.
+    const handleClientSelect = (client) => {
+        // Pass along the archival status via the source query parameter.
+        const sourceParam = client.is_archived ? "archived" : "active";
+        navigate(`/client-results/${client.id}?source=${sourceParam}`);
     };
 
     const handleLogout = async () => {
@@ -101,6 +111,19 @@ const ClinicianDashboard = () => {
         navigate("/admin-dashboard"); // ✅ Toggle Back to Admin Dashboard
     };
 
+    // New scroll handler for the dropdown.
+    const handleDropdownScroll = () => {
+        const container = dropdownRef.current;
+        if (container) {
+            // When scrolled near the bottom (5px threshold), load more options.
+            if (container.scrollTop + container.clientHeight >= container.scrollHeight - 5) {
+                setVisibleOptionsCount((prev) =>
+                    Math.min(prev + 15, clientOptions.length)
+                );
+            }
+        }
+    };
+
     return (
         <div className="client-dashboard-container">
             <h2 className="client-dashboard-title">
@@ -119,19 +142,24 @@ const ClinicianDashboard = () => {
                     {isLoading ? (
                         <LoadingMessage text="Searching..." />
                     ) : clientOptions.length > 0 ? (
-                        <ul className="dropdown-menu">
-                            {clientOptions.map((client) => (
+                        <ul
+                            className="dropdown-menu"
+                            ref={dropdownRef}
+                            onScroll={handleDropdownScroll}
+                        >
+                            {clientOptions.slice(0, visibleOptionsCount).map((client) => (
                                 <li
                                     key={client.id}
-                                    onClick={() => handleClientSelect(client.id)}
+                                    onClick={() => handleClientSelect(client)}
                                     className="dropdown-item"
                                 >
-                                    {`${client.first_name} ${client.last_name}`}
+                                    {`${client.first_name} ${client.last_name}`}{" "}
+                                    {client.is_archived && <span>(Archived)</span>}
                                 </li>
                             ))}
                         </ul>
                     ) : searchQuery.length >= 2 ? (
-                        <p className="no-results">No matches found</p> // ✅ This only appears AFTER loading
+                        <p className="no-results">No matches found</p>
                     ) : null}
                     <div className="search-container">
                         <div className="form-actions">
@@ -156,6 +184,12 @@ const ClinicianDashboard = () => {
                                     Admin View
                                 </button>
                             )}
+                            <button
+                                onClick={() => navigate('/search-results')}
+                                className="dashboard-button primary"
+                            >
+                                Advanced Search
+                            </button>
                         </div>
                     </div>
                 </div>
