@@ -27,7 +27,12 @@ const RemoveUserPage = () => {
             });
 
             if (response.data && Array.isArray(response.data[role + "s"])) {
-                setUsers(response.data[role + "s"]);
+                let fetchedUsers = response.data[role + "s"];
+                // If we're fetching clinicians, filter out any users that are admins.
+                if (role === "clinician") {
+                    fetchedUsers = fetchedUsers.filter(user => !user.is_admin);
+                }
+                setUsers(fetchedUsers);
             } else {
                 console.error(`Unexpected data structure from ${endpoint}:`, response.data);
                 setUsers([]);
@@ -50,14 +55,14 @@ const RemoveUserPage = () => {
         try {
             const token = localStorage.getItem("token");
 
-            // ✅ Request user removal from backend
+            // Request user removal from backend.
             await axios.post(
                 `${API_URL}/remove-user`,
                 { user_id: selectedUserId },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
-            // ✅ Log out removed user from all devices
+            // Log out removed user from all devices.
             await axios.post(
                 `${API_URL}/logout-all`,
                 { user_id: selectedUserId },
@@ -88,7 +93,10 @@ const RemoveUserPage = () => {
                     <label>Select Role:</label>
                     <select
                         value={role}
-                        onChange={(e) => setRole(e.target.value)}
+                        onChange={(e) => {
+                            setRole(e.target.value);
+                            setSelectedUserId("");
+                        }}
                         className="form-select"
                     >
                         <option value="clinician">Clinician</option>

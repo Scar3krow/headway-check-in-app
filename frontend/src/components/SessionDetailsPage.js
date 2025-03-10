@@ -103,6 +103,8 @@ const SessionDetailsPage = () => {
 
         setSessionDetails(formattedResponses);
         setQuestionMap(qMap);
+        console.log("Question Map Keys:", Object.keys(questionMap));
+        console.log("Summary Response IDs:", sessionDetails.map((d) => d.question_id.toString().trim()));
       } catch (error) {
         console.error("Error fetching session details:", error);
         setErrorMessage("An error occurred while fetching session details. Please try again.");
@@ -133,12 +135,17 @@ const SessionDetailsPage = () => {
               </tr>
             </thead>
             <tbody>
-              {sessionDetails.map((detail) => (
-                <tr key={detail.question_id}>
-                  <td>{questionMap[detail.question_id] || `Question ${detail.question_id}`}</td>
-                  <td>{responseTextMap[detail.response_value] || "Unknown"}</td>
-                </tr>
-              ))}
+              {sessionDetails.map((detail) => {
+                // Convert the question_id to a string and trim any extra whitespace.
+                const qid = detail.question_id.toString().trim();
+                const qText = questionMap[qid] || `Question ${qid}`;
+                return (
+                  <tr key={qid}>
+                    <td>{qText}</td>
+                    <td>{responseTextMap[detail.response_value] || "Unknown"}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

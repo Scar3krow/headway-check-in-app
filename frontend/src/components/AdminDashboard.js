@@ -145,6 +145,12 @@ const AdminDashboard = () => {
                             View Clinician Data
                         </button>
                         <button
+                            onClick={() => navigate("/admin-search-clients")}
+                            className="dashboard-button info"
+                        >
+                            Admin Search View
+                        </button>
+                        <button
                             onClick={() => navigate("/remove-user")}
                             className="dashboard-button danger"
                         >

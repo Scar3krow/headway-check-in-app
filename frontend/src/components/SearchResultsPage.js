@@ -109,6 +109,9 @@ const SearchResultsPage = () => {
         navigate("/clinician-dashboard");
     };
 
+    // Calculate total pages based on 20 items per page.
+    const totalPages = Math.ceil(allResults.length / 20);
+
     return (
         <div className="client-dashboard-container">
             <h2 className="client-dashboard-title">Search Results</h2>
@@ -160,7 +163,6 @@ const SearchResultsPage = () => {
                             >
                                 Previous
                             </button>
-                            <span>Page {page}</span>
                             <button
                                 onClick={handleNextPage}
                                 disabled={page * 20 >= allResults.length}
@@ -168,10 +170,12 @@ const SearchResultsPage = () => {
                             >
                                 Next
                             </button>
+                            <span>Page {page} of {totalPages}</span>
                         </div>
                     </>
                 ) : (
-                    <p className="error-message">{errorMessage || "No results found."}</p>
+                    // Show "No results found" only if a search query was submitted.
+                    query ? <p className="error-message">{errorMessage || "No results found."}</p> : null
                 )}
                 <div className="form-actions">
                     <button onClick={handleBack} className="dashboard-button secondary">

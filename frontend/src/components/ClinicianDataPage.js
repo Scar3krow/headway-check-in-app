@@ -81,81 +81,92 @@ const ClinicianDataPage = () => {
         navigate("/overall-data-page");
     }
 
-    return (
-        <div className="form-container">
-            <h2 className="form-title">Clinician Data</h2>
-            {error && <p className="error-message">{error}</p>}
-            <div className="form-content">
-                <div className="form-group">
-                    <label className="form-question">Select a Clinician:</label>
-                    <select
-                        value={selectedClinicianId}
-                        onChange={handleClinicianChange}
-                        className="form-select"
-                    >
-                        <option value="" disabled>
-                            Select a clinician
-                        </option>
-                        {clinicians.map((clinician) => (
-                            <option key={clinician.id} value={clinician.id}>
-                                {clinician.name}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-                {stats && (
-                    <table className="stats-table">
-                        <thead>
-                            <tr>
-                                <th>Metric</th>
-                                <th>Value</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>Total Clients</td>
-                                <td>{stats.total_clients}</td>
-                            </tr>
-                            <tr>
-                                <td>% Improved</td>
-                                <td>
-                                    {stats.percent_improved !== undefined
-                                        ? stats.percent_improved.toFixed(2) + "%"
-                                        : "N/A"}
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>% Clinically Significant</td>
-                                <td>{stats.percent_clinically_significant !== undefined
-                                    ? stats.percent_clinically_significant.toFixed(2) + "%"
-                                    : "N/A"}</td>
-                            </tr>
-                            <tr>
-                                <td>% Improved (Last 6 Months)</td>
-                                <td>{stats.percent_improved_last_6_months !== undefined
-                                    ? stats.percent_improved_last_6_months.toFixed(2) + "%"
-                                    : "N/A"}</td>
-                            </tr>
-                            <tr>
-                                <td>% Clinically Significant (Last 6 Months)</td>
-                                <td>{stats.percent_clinically_significant_last_6_months !== undefined
-                                    ? stats.percent_clinically_significant_last_6_months.toFixed(2) + "%"
-                                    : "N/A"}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                )}
-            </div>
-            <div className="form-actions">
-                <button onClick={handleOverallData} className="dashboard-button secondary">
-                    Overall Data
-                </button>
-                <button onClick={handleBack} className="dashboard-button secondary">
-                    Back to Dashboard
-                </button>
-            </div>
-        </div>
-    );
-};
+    const handleMetricClick = (metric, timeFilter) => {
+        // Navigate to a new admin search results page that uses these query parameters
+        navigate(`/admin-search-clients?clinician_id=${selectedClinicianId}&metric=${metric}&time=${timeFilter}`);
+      };
 
+    return (
+    <div className="form-container">
+      <h2 className="form-title">Clinician Data</h2>
+        {error && <p className="error-message">{error}</p>}
+      <div className="form-content">
+        <div className="form-group">
+            <label className="form-question">Select a Clinician:</label>
+          <select
+            value={selectedClinicianId}
+            onChange={handleClinicianChange}
+            className="form-select"
+          >
+            <option value="" disabled>
+              Select a clinician
+            </option>
+            {clinicians.map((clinician) => (
+              <option key={clinician.id} value={clinician.id}>
+                {clinician.name}
+                </option>
+            ))}
+          </select>
+        </div>
+        {stats && (
+            <table className="stats-table">
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th>Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr onClick={() => handleMetricClick("total_clients", "all")}>
+                <td>Total Clients</td>
+                <td>{stats.total_clients}</td>
+              </tr>
+              <tr onClick={() => handleMetricClick("improved", "all")}>
+                <td>% Improved</td>
+                <td>
+                  {stats.percent_improved !== undefined
+                    ? stats.percent_improved.toFixed(2) + "%"
+                    : "N/A"}
+                </td>
+                </tr>
+              <tr onClick={() => handleMetricClick("clinically_significant", "all")}>
+                <td>% Clinically Significant</td>
+                <td>
+                  {stats.percent_clinically_significant !== undefined
+                    ? stats.percent_clinically_significant.toFixed(2) + "%"
+                    : "N/A"}
+                </td>
+              </tr>
+              <tr onClick={() => handleMetricClick("improved", "6months")}>
+                <td>% Improved (Last 6 Months)</td>
+                <td>
+                  {stats.percent_improved_last_6_months !== undefined
+                    ? stats.percent_improved_last_6_months.toFixed(2) + "%"
+                    : "N/A"}
+                </td>
+                </tr>
+              <tr onClick={() => handleMetricClick("clinically_significant", "6months")}>
+                <td>% Clinically Significant (Last 6 Months)</td>
+                <td>
+                  {stats.percent_clinically_significant_last_6_months !== undefined
+                    ? stats.percent_clinically_significant_last_6_months.toFixed(2) + "%"
+                    : "N/A"}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        )}
+      </div>
+      <div className="form-actions">
+        <button onClick={handleOverallData} className="dashboard-button secondary">
+          Overall Data
+        </button>
+        <button onClick={handleBack} className="dashboard-button secondary">
+          Back to Dashboard
+        </button>
+        </div>
+    </div>
+  );
+};
+    
 export default ClinicianDataPage;

@@ -21,6 +21,7 @@ import ForgotPasswordPage from "./components/ForgotPasswordPage";
 import ResetPasswordPage from "./components/ResetPasswordPage";
 import QuestionnairePage from "./components/QuestionnairePage";
 import OverallDataPage from "./components/OverallDataPage";
+import AdminSearchClientsPage from "./components/AdminSearchClientsPage.js";
 import './styles/global.css';
 
 // 🔐 **Protected Route Component**
@@ -112,6 +113,7 @@ function App() {
                     <Route path="/admin-dashboard" element={<ProtectedRoute element={<AdminDashboard />} roleRequired="admin" />} />
                     <Route path="/remove-user" element={<ProtectedRoute element={<RemoveUserPage />} roleRequired="admin" />} />
                     <Route path="/overall-data-page" element={<ProtectedRoute element={<OverallDataPage />} roleRequired="admin" />} />
+                    <Route path="/admin-search-clients" element={<ProtectedRoute element={<AdminSearchClientsPage />} roleRequired="admin" />} />
 
                     {/* Mixed Roles (Accessible by Multiple Roles) */}
                     <Route path="/forms" element={<ProtectedRoute element={<Form />} roleRequired={["client", "clinician", "admin"]} />} />

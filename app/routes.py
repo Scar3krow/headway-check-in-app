@@ -976,7 +976,15 @@ def remove_user():
         return cors_enabled_response({'message': 'User ID is required'}, 400)
 
     try:
-        # Fetch the user document from the `users` collection
+        # Force logout from all devices: remove sessions from both active and archived collections.
+        active_sessions_ref = db.collection('users').document(user_id).collection('sessions')
+        for session in active_sessions_ref.stream():
+            session.reference.delete()
+        archived_sessions_ref = db.collection('archived_users').document(user_id).collection('sessions')
+        for session in archived_sessions_ref.stream():
+            session.reference.delete()
+
+        # Fetch the user document from the `users` collection.
         user_doc = db.collection('users').document(user_id).get()
         if not user_doc.exists:
             return cors_enabled_response({'message': 'User not found'}, 404)
@@ -984,18 +992,18 @@ def remove_user():
         user_data = user_doc.to_dict()
         user_role = user_data.get('role')  # Assumes roles are stored in `users`
 
-        # ✅ Remove from `users` collection
+        # Remove from `users` collection.
         db.collection('users').document(user_id).delete()
 
-        # ✅ If the user is a clinician, remove from `clinicians`
+        # If the user is a clinician, remove from `clinicians`.
         db.collection('clinicians').document(user_id).delete()
 
-        # ✅ If the user is an admin, also remove from `admins`
+        # If the user is an admin, also remove from `admins`.
         if user_role == "admin":
             db.collection('admins').document(user_id).delete()
 
-        # 🔄 **Reassign Clients if user was a clinician**
-        if user_role == "clinician" or user_role == "admin":
+        # Reassign clients if the user was a clinician or admin.
+        if user_role in ["clinician", "admin"]:
             clients_ref = db.collection('users').where('assigned_clinician_id', '==', user_id).stream()
             client_updates = []
             for client in clients_ref:
@@ -1016,12 +1024,18 @@ def remove_user():
 
 @main_bp.route('/get-clinicians', methods=['GET'])
 def get_clinicians():
-    """Fetch all clinicians."""
+    """Fetch all clinicians (excluding admins)."""
     try:
         clinicians_ref = db.collection('clinicians').stream()
-        clinicians = [{"id": c.id, "name": c.to_dict().get("name", "")} for c in clinicians_ref]
-
-        return cors_enabled_response({"clinicians": clinicians or []}, 200)
+        # Include the is_admin flag in the fetched data.
+        clinicians = [
+            {"id": c.id, "name": c.to_dict().get("name", ""), "is_admin": c.to_dict().get("is_admin", False)}
+            for c in clinicians_ref
+        ]
+        # Filter out users that are admins.
+        filtered_clinicians = [clin for clin in clinicians if not clin.get("is_admin")]
+        
+        return cors_enabled_response({"clinicians": filtered_clinicians or []}, 200)
 
     except Exception as e:
         return cors_enabled_response({"message": "Failed to fetch clinicians", "error": str(e)}, 500)
@@ -1334,21 +1348,27 @@ def logout_all():
         return cors_enabled_response(error_response, status_code)
 
     data = request.get_json()
-    target_user_id = data.get('user_id')  # ✅ Admin specifies which user to log out
+    target_user_id = data.get('user_id')  # Admin specifies which user to log out
 
     if not target_user_id:
         return cors_enabled_response({'message': 'User ID is required'}, 400)
 
-    # 🔥 Ensure only admins can log out other users
+    # Ensure only admins (or the user themself) can log out other users.
     if decoded_token.get('role') != "admin" and decoded_token.get('id') != target_user_id:
         return cors_enabled_response({'message': 'Unauthorized: Cannot log out other users'}, 403)
 
-    # 🔥 Remove **all** sessions for the specified user
+    # Remove all sessions from active users.
     sessions_ref = db.collection('users').document(target_user_id).collection('sessions')
     for session in sessions_ref.stream():
         session.reference.delete()
 
+    # Remove all sessions from archived users (if any).
+    archived_sessions_ref = db.collection('archived_users').document(target_user_id).collection('sessions')
+    for session in archived_sessions_ref.stream():
+        session.reference.delete()
+
     return cors_enabled_response({'message': 'Logged out from all devices'}, 200)
+
 
 @main_bp.route('/archive-client/<user_id>', methods=['POST'])
 def archive_client(user_id):
@@ -1356,6 +1376,7 @@ def archive_client(user_id):
     Archive a client by moving their data from active collections (users and user_data)
     to archived collections (archived_users and archived_user_data). Once moved, the original
     documents are deleted. This version uses Firestore batch writes to minimize network round-trips.
+    Additionally, it forces a logout from all devices by deleting active sessions.
     """
     try:
         # Validate token and role.
@@ -1382,7 +1403,15 @@ def archive_client(user_id):
                 batch = db.batch()
                 op_count = 0
 
-        # 1. Archive the client's basic info from "users" to "archived_users".
+        # --- Force Logout: Delete all sessions from active user's "sessions" subcollection ---
+        sessions_to_delete = list(db.collection("users").document(user_id).collection("sessions").stream())
+        print(f"Deleting {len(sessions_to_delete)} active sessions for user {user_id} to force logout.")
+        for session in sessions_to_delete:
+            batch.delete(session.reference)
+            op_count += 1
+            commit_batch_if_needed()
+
+        # --- Step 1: Archive the client's basic info from "users" to "archived_users" ---
         client_ref = db.collection("users").document(user_id)
         client_snapshot = client_ref.get()
         if not client_snapshot.exists:
@@ -1397,11 +1426,9 @@ def archive_client(user_id):
         commit_batch_if_needed()
         print(f"Archived client basic info for user {user_id}.")
 
-        # 2. Archive the client's data from "user_data" to "archived_user_data".
-        # Note: The parent document in user_data may not exist even if subcollections (sessions) do.
+        # --- Step 2: Archive the client's data from "user_data" to "archived_user_data" ---
         user_data_ref = db.collection("user_data").document(user_id)
         archived_user_data_ref = db.collection("archived_user_data").document(user_id)
-        # Create/update the archived document with minimal metadata.
         batch.set(archived_user_data_ref, {"archived_at": firestore.SERVER_TIMESTAMP}, merge=True)
         op_count += 1
         commit_batch_if_needed()
@@ -1449,6 +1476,7 @@ def archive_client(user_id):
     except Exception as e:
         print(f"Error archiving client {user_id}: {e}")
         return cors_enabled_response({'message': 'Error archiving client.', 'error': str(e)}, 500)
+
 
 
 @main_bp.route('/unarchive-client/<user_id>', methods=['POST'])
@@ -1557,4 +1585,136 @@ def unarchive_client(user_id):
     except Exception as e:
         print(f"Error unarchiving client {user_id}: {e}")
         return cors_enabled_response({'message': 'Error unarchiving client.', 'error': str(e)}, 500)
+
+@main_bp.route('/admin-search-clients', methods=['GET'])
+def admin_search_clients():
+    """
+    Admin route to fetch the list of clients assigned to a specific clinician,
+    optionally filtered by a search query, improvement metrics, and time.
+    
+    Query parameters:
+      - clinician_id (optional): The clinician whose clients are to be listed. 
+          If omitted or blank, returns clients for all clinicians.
+      - query (optional): Text string to search for in client first/last names.
+      - metric (optional): 
+            "total_clients" (default) - no filtering, return all clients,
+            "improved" - only return clients where latest < initial,
+            "clinically_significant" - only return clients meeting a clinical threshold.
+      - time (optional): "all" (default) or "6months" to only include clients whose latest session is within the past 6 months.
+    """
+    decoded_token, error_response, status_code = validate_token()
+    if error_response:
+        return cors_enabled_response(error_response, status_code)
+    
+    if decoded_token.get('role') != 'admin':
+        return cors_enabled_response({'message': 'Unauthorized: Only admins can access this data'}, 403)
+    
+    # Get the filters from query parameters.
+    clinician_id = request.args.get('clinician_id', "").strip()  # Optional: blank means all clinicians.
+    query_text = request.args.get('query', '').strip().lower()   # New search query parameter.
+    metric = request.args.get('metric', 'total_clients').strip().lower()
+    time_filter = request.args.get('time', 'all').strip().lower()
+    
+    try:
+        # --- Step 1: Fetch clients based on clinician filter ---
+        active_clients = []
+        archived_clients = []
+        if clinician_id:
+            active_clients_stream = db.collection('users').where('assigned_clinician_id', '==', clinician_id).stream()
+            archived_clients_stream = db.collection('archived_users').where('assigned_clinician_id', '==', clinician_id).stream()
+        else:
+            # If clinician_id is blank, get all clients.
+            active_clients_stream = db.collection('users').stream()
+            archived_clients_stream = db.collection('archived_users').stream()
+        
+        for client in active_clients_stream:
+            data = client.to_dict()
+            data['user_id'] = client.id
+            data['is_archived'] = False
+            active_clients.append(data)
+            
+        for client in archived_clients_stream:
+            data = client.to_dict()
+            data['user_id'] = client.id
+            data['is_archived'] = True
+            archived_clients.append(data)
+        
+        # Combine both lists.
+        clients = active_clients + archived_clients
+
+        # --- Step 2: If a search query is provided, filter by client name ---
+        if query_text:
+            filtered_by_query = []
+            for client in clients:
+                first_name = client.get('first_name', '').lower()
+                last_name = client.get('last_name', '').lower()
+                if query_text in first_name or query_text in last_name:
+                    filtered_by_query.append(client)
+            clients = filtered_by_query
+
+        # --- Step 3: Define helper functions to calculate client scores ---
+        def calculate_scores_for_client(user_id, is_archived):
+            """
+            Fetch sessions for a client from the appropriate parent collection,
+            calculate the score for the earliest and the latest session (using summary_responses).
+            Returns a tuple: (initial_score, latest_score, latest_timestamp) or (None, None, None) if insufficient data.
+            """
+            collection = "user_data" if not is_archived else "archived_user_data"
+            sessions_ref = db.collection(collection).document(user_id).collection("sessions")
+            sessions = list(sessions_ref.order_by("timestamp", direction=firestore.Query.ASCENDING).stream())
+            if len(sessions) < 2:
+                return None, None, None
+            session_scores = []
+            for session in sessions:
+                s_data = session.to_dict()
+                timestamp = s_data.get("timestamp")
+                responses = s_data.get("summary_responses", [])
+                try:
+                    values = [float(r.get("response_value", 0)) for r in responses]
+                except Exception:
+                    values = []
+                if values:
+                    total_score = sum(values) - 10  # Adjust as needed.
+                    session_scores.append({"timestamp": timestamp, "score": total_score})
+            session_scores.sort(key=lambda x: x["timestamp"])
+            if len(session_scores) < 2:
+                return None, None, None
+            return session_scores[0]["score"], session_scores[-1]["score"], session_scores[-1]["timestamp"]
+        
+        def is_clinically_significant(initial, latest):
+            # Example criteria: initial > 18 and difference >= 12.
+            return initial is not None and initial > 18 and (initial - latest) >= 12
+        
+        def is_recent(timestamp):
+            six_months_ago = datetime.utcnow().replace(tzinfo=timezone.utc) - timedelta(days=182)
+            return timestamp and timestamp >= six_months_ago
+        
+        # --- Step 4: Filter clients based on metric and time ---
+        filtered_clients = []
+        if metric == "total_clients":
+            filtered_clients = clients
+        else:
+            for client in clients:
+                initial, latest, last_ts = calculate_scores_for_client(client['user_id'], client['is_archived'])
+                if initial is None or latest is None:
+                    continue  # Skip clients with insufficient data.
+                if time_filter == "6months" and not is_recent(last_ts):
+                    continue
+                if metric == "improved":
+                    if latest < initial:
+                        client['improvement'] = initial - latest
+                        filtered_clients.append(client)
+                elif metric == "clinically_significant":
+                    if is_clinically_significant(initial, latest):
+                        client['improvement'] = initial - latest
+                        filtered_clients.append(client)
+                else:
+                    return cors_enabled_response({'message': 'Invalid metric parameter'}, 400)
+        
+        return cors_enabled_response({'clients': filtered_clients}, 200)
+    
+    except Exception as e:
+        print(f"Error in /admin-search-clients: {e}")
+        return cors_enabled_response({'message': 'Error retrieving clients', 'error': str(e)}, 500)
+
 
