@@ -24,9 +24,9 @@ const Home = () => {
 
     return (
         <div className="home-container">
-            <h1 className="home-title">Welcome to Headway Check-In App</h1>
+            <h1 className="home-title">Welcome to the Headway Check-In App</h1>
             <p className="home-description">
-                Stay connected and track progress with a simple, easy-to-use questionnaire.
+                Stay connected and track your progress collaboratively with your therapist using a simple, easy-to-use questionnaire.
             </p>
             <div className="home-buttons">
                 <Link to="/login" className="dashboard-button primary">
