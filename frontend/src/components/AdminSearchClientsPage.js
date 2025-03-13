@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import "../styles/global.css"; // Consolidated global styles
 import "../styles/dashboard.css"; // Dashboard-specific styles
 import "../styles/loading.css";
+import "../styles/adminsearchclients.css";
 import { API_URL } from "../config";
 import LoadingMessage from "../components/LoadingMessage";
 
@@ -27,7 +28,7 @@ const AdminSearchClientsPage = () => {
   const location = useLocation();
   const urlParams = new URLSearchParams(location.search);
 
-  // Initialize filter state from URL or default values.
+  // Initialize state from URL or default values.
   const [clinicianFilter, setClinicianFilter] = useState(urlParams.get("clinician_id") || "");
   const [metricFilter, setMetricFilter] = useState(urlParams.get("metric") || "total_clients");
   const [timeFilter, setTimeFilter] = useState(urlParams.get("time") || "all");
@@ -57,18 +58,37 @@ const AdminSearchClientsPage = () => {
         const data = await response.json();
         const list = data.clinicians || [];
         setClinicians(list);
-        // If no clinicianFilter is set yet, choose blank ("all clinicians")
-        if (clinicianFilter === "" && list.length > 0) {
-          // Do nothing: blank value means "all clinicians"
-        }
       } catch (error) {
         console.error("Error fetching clinicians:", error);
       }
     };
     fetchClinicians();
-  }, [clinicianFilter]);
+  }, []);
 
-  // Update URL for bookmarking/sharing whenever search params change.
+  // Restore search state from sessionStorage on mount.
+  useEffect(() => {
+    const savedState = sessionStorage.getItem("adminSearchResults");
+    if (savedState) {
+      const parsed = JSON.parse(savedState);
+      setQuery(parsed.query);
+      setSubmittedQuery(parsed.query);
+      setPage(parsed.page);
+      setAllResults(parsed.allResults);
+      // Optionally, also restore metricFilter and timeFilter:
+      if (parsed.metricFilter) setMetricFilter(parsed.metricFilter);
+      if (parsed.timeFilter) setTimeFilter(parsed.timeFilter);
+      sessionStorage.removeItem("adminSearchResults");
+    } else if (query) {
+      fetchSearchResults();
+    } else {
+      setAllResults([]);
+      setSearchResults([]);
+    }
+    updateURL(submittedQuery, page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Update URL when filters or pagination change.
   const updateURL = (q, p) => {
     const params = new URLSearchParams();
     params.set("clinician_id", clinicianFilter);
@@ -94,7 +114,12 @@ const AdminSearchClientsPage = () => {
       if (!response.ok) throw new Error("Failed to fetch search results");
       const data = await response.json();
       const clients = data.clients || [];
-      setAllResults(clients);
+      // Filter out any users that are not clients.
+      const filteredClients = clients.filter(client => {
+        const role = client.role ? client.role.toLowerCase() : "client";
+        return role === "client";
+      });
+      setAllResults(filteredClients);
       // Reset to first page on new search.
       setPage(1);
     } catch (error) {
@@ -105,20 +130,14 @@ const AdminSearchClientsPage = () => {
     }
   };
 
-  // Update URL when filters or pagination change.
-  useEffect(() => {
-    updateURL(submittedQuery, page);
-  }, [submittedQuery, clinicianFilter, metricFilter, timeFilter, page]);
-
   // Update displayed searchResults based on allResults and current page.
   useEffect(() => {
     const startIndex = (page - 1) * 20;
     const endIndex = page * 20;
     setSearchResults(allResults.slice(startIndex, endIndex));
     updateURL(submittedQuery, page);
-  }, [allResults, page, submittedQuery]);
+  }, [allResults, page, submittedQuery, clinicianFilter, metricFilter, timeFilter]);
 
-  // Handle search form submission: update submittedQuery and fetch results.
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     setSubmittedQuery(query);
@@ -127,7 +146,7 @@ const AdminSearchClientsPage = () => {
 
   const handleClientSelect = (client) => {
     const sourceParam = client.is_archived ? "archived" : "active";
-    navigate(`/client-results/${client.id}?source=${sourceParam}`);
+    navigate(`/client-results/${client.user_id}?source=${sourceParam}`);
   };
 
   const handleNextPage = () => {
@@ -140,87 +159,98 @@ const AdminSearchClientsPage = () => {
     if (page > 1) setPage((prevPage) => prevPage - 1);
   };
 
-  // Navigate back.
+  // Save current state and go back.
   const handleBack = () => {
+    const savedState = {
+      query,
+      metricFilter,
+      timeFilter,
+      page,
+      allResults
+    };
+    sessionStorage.setItem("adminSearchResults", JSON.stringify(savedState));
     navigate(-1);
   };
 
+  const totalPages = Math.ceil(allResults.length / 20);
+
   return (
     <div className="client-dashboard-container">
-      <h2 className="client-dashboard-title">
-        Clients for Clinician{" "}
-        {
-          // If a clinician is selected, display its name; otherwise, "All Clinicians"
-          (clinicians.find((c) => c.id === clinicianFilter) || {}).name || (clinicianFilter || "All Clinicians")
-        }
-        <br />
-        Metric: {formatMetric(metricFilter)}
-        <br />
-        Time: {formatTime(timeFilter)}
-      </h2>
-      <form onSubmit={handleSearchSubmit} className="search-form">
+      <div className="admin-search-title-container">
+        <h1 className="main-title">
+          Clients for Clinician:{" "}
+          {(clinicians.find((c) => c.id === clinicianFilter) || {}).name ||
+            (clinicianFilter || "All Clinicians")}
+        </h1>
+        <p className="sub-title">
+          <span className="category">Metric:</span> {formatMetric(metricFilter)}
+        </p>
+        <p className="sub-title">
+          <span className="category">Time:</span> {formatTime(timeFilter)}
+        </p>
+      </div>
+      <form onSubmit={handleSearchSubmit} className="admin-search-form">
+        {/* Search input moved above the filters */}
         <input
           type="text"
           placeholder="Enter client name or keyword..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="search-input"
+          className="search-input admin-search-input"
         />
 
-        <div className="filter-group">
-          <label htmlFor="clinician-select">Clinician:</label>
-          <select
-            id="clinician-select"
-            value={clinicianFilter}
-            onChange={(e) => setClinicianFilter(e.target.value)}
-            className="filter-select"
-          >
-            {/* Blank option to indicate "all clinicians" */}
-            <option value="">-- All Clinicians --</option>
-            {clinicians.map((clinician) => (
-              <option key={clinician.id} value={clinician.id}>
-                {clinician.name}
+        <div className="admin-filter-row">
+          <div className="filter-group">
+            <label htmlFor="clinician-select">Clinician:</label>
+            <select
+              id="clinician-select"
+              value={clinicianFilter}
+              onChange={(e) => setClinicianFilter(e.target.value)}
+              className="filter-select admin-filter-select"
+            >
+              <option value="">-- All Clinicians --</option>
+              {clinicians.map((clinician) => (
+                <option key={clinician.id} value={clinician.id}>
+                  {clinician.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label htmlFor="metric-select">Clinical Change:</label>
+            <select
+              id="metric-select"
+              value={metricFilter}
+              onChange={(e) =>
+                setMetricFilter(e.target.value || "total_clients")
+              }
+              className="filter-select admin-filter-select"
+            >
+              <option value="total_clients">All Levels of Change</option>
+              <option value="improved">Improved</option>
+              <option value="clinically_significant">
+                Clinically Significant Improvement
               </option>
-            ))}
-          </select>
+              <option value="not-improving">Not Improving</option>
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label htmlFor="time-select">Time:</label>
+            <select
+              id="time-select"
+              value={timeFilter}
+              onChange={(e) => setTimeFilter(e.target.value || "all")}
+              className="filter-select admin-filter-select"
+            >
+              <option value="all">All</option>
+              <option value="6months">Past 6 Months</option>
+            </select>
+          </div>
         </div>
 
-        <div className="filter-group">
-          <label htmlFor="metric-select">Metric:</label>
-          <select
-            id="metric-select"
-            value={metricFilter}
-            onChange={(e) =>
-              // If blank, default to "total_clients"
-              setMetricFilter(e.target.value || "total_clients")
-            }
-            className="filter-select"
-          >
-            <option value="">-- No Filter --</option>
-            <option value="total_clients">Total Clients</option>
-            <option value="improved">Improved</option>
-            <option value="clinically_significant">Clinically Significant</option>
-          </select>
-        </div>
-
-        <div className="filter-group">
-          <label htmlFor="time-select">Time:</label>
-          <select
-            id="time-select"
-            value={timeFilter}
-            onChange={(e) =>
-              // If blank, default to "all"
-              setTimeFilter(e.target.value || "all")
-            }
-            className="filter-select"
-          >
-            <option value="">-- No Filter --</option>
-            <option value="all">All</option>
-            <option value="6months">Past 6 Months</option>
-          </select>
-        </div>
-
-        <button type="submit" className="dashboard-button primary">
+        <button type="submit" className="dashboard-button primary admin-search-button">
           Search
         </button>
       </form>
@@ -241,7 +271,7 @@ const AdminSearchClientsPage = () => {
                 </li>
               ))}
             </ul>
-            <div className="pagination-controls">
+            <div className="admin-pagination-controls">
               <button
                 onClick={handlePrevPage}
                 disabled={page <= 1}
@@ -249,7 +279,6 @@ const AdminSearchClientsPage = () => {
               >
                 Previous
               </button>
-              <span>Page {page}</span>
               <button
                 onClick={handleNextPage}
                 disabled={page * 20 >= allResults.length}
@@ -257,14 +286,17 @@ const AdminSearchClientsPage = () => {
               >
                 Next
               </button>
+              <span>
+                Page {page} of {totalPages}
+              </span>
             </div>
           </>
         ) : (
-          <p className="error-message">{errorMessage || "No results found."}</p>
+          submittedQuery && <p className="error-message">{errorMessage || "No results found."}</p>
         )}
         <div className="form-actions">
           <button onClick={handleBack} className="dashboard-button secondary">
-            Back to Search Results
+            Back to Dashboard
           </button>
         </div>
       </div>

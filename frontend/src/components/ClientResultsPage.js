@@ -21,7 +21,7 @@ const formatDateDDMMYY = (dateInput) => {
 };
 
 const ClientResultsPage = () => {
-  const { userId } = useParams();
+  const { userId } = useParams(); 
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -204,8 +204,8 @@ const ClientResultsPage = () => {
   };
 
   const handleBack = () => {
-    navigate("/clinician-dashboard");
-  };
+    navigate(-1);
+  };  
 
   const handleSessionClick = (selectedSessionId) => {
     const sessionIndex = sessionIds.indexOf(selectedSessionId);
@@ -288,7 +288,7 @@ const ClientResultsPage = () => {
           )}
           <div className="form-actions">
             <button onClick={handleBack} className="dashboard-button secondary">
-              Back to Dashboard
+              Back
             </button>
           </div>
           <button onClick={toggleArchive} className="dashboard-button secondary">

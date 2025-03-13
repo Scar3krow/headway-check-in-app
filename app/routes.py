@@ -137,7 +137,7 @@ def register():
 
     user_id = user_ref[1].id
 
-    # Ensure clinicians & admins are added to the clinicians collection
+    # For both clinicians and admins, add them to the clinicians collection.
     if role in ['clinician', 'admin']:
         db.collection('clinicians').document(user_id).set({
             'id': user_id,
@@ -146,7 +146,7 @@ def register():
             'assigned_clinician_id': assigned_clinician_id if role == 'admin' else None,
         })
 
-    # Ensure admins are also in the admins collection
+    # Ensure admins are also added to the admins collection.
     if role == 'admin':
         db.collection('admins').document(user_id).set({
             'id': user_id,
@@ -394,8 +394,9 @@ def past_responses():
             for session in sessions_list
         ]
 
+        # Instead of returning a 404 error, return an empty list if there are no responses.
         if not responses_list:
-            return cors_enabled_response({'message': 'No responses available'}, 404)
+            return cors_enabled_response([], 200)
 
         return cors_enabled_response(responses_list, 200)
 
@@ -1022,8 +1023,8 @@ def remove_user():
         return cors_enabled_response({'message': 'An error occurred while removing the user', 'error': str(e)}, 500)
 
 
-@main_bp.route('/get-clinicians', methods=['GET'])
-def get_clinicians():
+@main_bp.route('/get-only-clinicians', methods=['GET'])
+def get_only_clinicians():
     """Fetch all clinicians (excluding admins)."""
     try:
         clinicians_ref = db.collection('clinicians').stream()
@@ -1036,6 +1037,20 @@ def get_clinicians():
         filtered_clinicians = [clin for clin in clinicians if not clin.get("is_admin")]
         
         return cors_enabled_response({"clinicians": filtered_clinicians or []}, 200)
+
+    except Exception as e:
+        return cors_enabled_response({"message": "Failed to fetch clinicians", "error": str(e)}, 500)
+    
+@main_bp.route('/get-clinicians', methods=['GET'])
+def get_clinicians():
+    try:
+        clinicians_ref = db.collection('clinicians').stream()
+        clinicians = [
+            {"id": c.id, "name": c.to_dict().get("name", "")}
+            for c in clinicians_ref
+        ]
+        
+        return cors_enabled_response({"clinicians": clinicians or []}, 200)
 
     except Exception as e:
         return cors_enabled_response({"message": "Failed to fetch clinicians", "error": str(e)}, 500)
@@ -1054,118 +1069,204 @@ def get_admins():
         return cors_enabled_response({"message": "Failed to fetch admins", "error": str(e)}, 500)
 
 
-#NEEDS TO BE UPDATED TO USE APPROPRIATE SEARCH FILTERS + SPED UP
 @main_bp.route('/clinician-data', methods=['GET'])
 def get_clinician_data():
-    """Fetch clinician data for analysis based on the new Firestore structure."""
+    """
+    Fetch clinician data for analysis based on the new Firestore structure.
+    Uses active (non-archived) clients only. For improvement-based metrics,
+    only considers clients with 3 or more sessions.
+    
+    Metrics:
+      - Total Clients: Total number of active clients.
+      - % Improved: % of clients (with ≥3 sessions) where latest < initial.
+      - % Clinically Significant: % of clients (with ≥3 sessions) meeting a clinical threshold.
+      - % Not Improving: % of clients (with ≥3 sessions) where the latest score is 
+                         equal to or lower than the lower score of the first two sessions.
+      - The same three percentages are also computed for clients whose latest session is within the past 6 months.
+    
+    Additionally returns the current search filters in admin_search_filters.
+    """
+    from datetime import datetime, timedelta, timezone
     try:
         decoded_token, error_response, status_code = validate_token()
         if error_response:
             return cors_enabled_response(error_response, status_code)
-
-        # ✅ Ensure only admins can access
+    
         if decoded_token.get('role') != 'admin':
             return cors_enabled_response({'message': 'Unauthorized: Only admins can access this data'}, 403)
-
+    
         clinician_id = request.args.get('clinician_id')
         if not clinician_id:
             return cors_enabled_response({'message': 'Clinician ID is required'}, 400)
-
-        # 🔍 **Fetch all clients assigned to the clinician**
+    
+        # Fetch active (non-archived) clients assigned to the clinician.
         clients_ref = db.collection('users').where('assigned_clinician_id', '==', clinician_id).stream()
         clients = [{**client.to_dict(), 'user_id': client.id} for client in clients_ref]
-
         total_clients = len(clients)
-
+    
+        # If no clients, return zeros.
         if total_clients == 0:
             return cors_enabled_response({
                 'total_clients': 0,
                 'percent_improved': 0,
                 'percent_clinically_significant': 0,
+                'percent_not_improving': 0,
                 'percent_improved_last_6_months': 0,
                 'percent_clinically_significant_last_6_months': 0,
+                'percent_not_improving_last_6_months': 0,
+                'admin_search_filters': {
+                    'clinician_id': clinician_id,
+                    'metric': request.args.get('metric', 'total_clients').strip().lower(),
+                    'time': request.args.get('time', 'all').strip().lower()
+                }
             }, 200)
-
-        # 🛠 Helper Functions
+    
+        # Read filter parameters.
+        metric = request.args.get('metric', 'total_clients').strip().lower()
+        time_filter = request.args.get('time', 'all').strip().lower()
+    
+        # --- Helper Functions ---
         def calculate_scores(user_id):
-            """Fetch all session scores for a user, sorted by timestamp."""
-            try:
-                sessions_ref = db.collection("user_data").document(user_id).collection("sessions").stream()
-                session_scores = []
-
-                for session_doc in sessions_ref:
-                    session_id = session_doc.id
-                    session_data = session_doc.to_dict()
-                    timestamp = session_data.get("timestamp")
-
-                    # 🔍 **Fetch all responses for this session**
-                    responses_ref = db.collection("user_data").document(user_id).collection("sessions").document(session_id).collection("responses").stream()
-                    responses = [resp.to_dict().get('response_value') for resp in responses_ref if 'response_value' in resp.to_dict()]
-
-                    if responses:
-                        total_score = sum(responses) - 10  # Adjusted for scaling
-                        session_scores.append({"timestamp": timestamp, "score": total_score})
-
-                # ✅ Sort sessions by timestamp (oldest first)
-                session_scores.sort(key=lambda x: x["timestamp"])
-
-                if len(session_scores) < 2:
-                    return None, None
-
-                return session_scores[0]["score"], session_scores[-1]["score"]
-
-            except Exception as e:
-                print(f"Error fetching scores for {user_id}: {e}")
-                return None, None
-
+            """
+            For "improved" and "clinically_significant": 
+            Fetch sessions (ordered by timestamp) from active data.
+            If the client has at least 3 sessions, returns (initial_score, latest_score, latest_timestamp).
+            Otherwise returns (None, None, None).
+            """
+            sessions_ref = db.collection("user_data").document(user_id).collection("sessions")
+            sessions = list(sessions_ref.order_by("timestamp", direction=firestore.Query.ASCENDING).stream())
+            if len(sessions) < 3:
+                return None, None, None
+            session_scores = []
+            for session in sessions:
+                s_data = session.to_dict()
+                timestamp = s_data.get("timestamp")
+                responses = s_data.get("summary_responses", [])
+                try:
+                    values = [float(r.get("response_value", 0)) for r in responses]
+                except Exception:
+                    values = []
+                if values:
+                    total_score = sum(values) - 10
+                    session_scores.append({"timestamp": timestamp, "score": total_score})
+            session_scores.sort(key=lambda x: x["timestamp"])
+            if len(session_scores) < 3:
+                return None, None, None
+            return session_scores[0]["score"], session_scores[-1]["score"], session_scores[-1]["timestamp"]
+    
+        def calculate_not_improving_scores(user_id):
+            """
+            For "not-improving": Require at least 3 sessions.
+            Look at the first two sessions and take the lower score,
+            then return that score along with the latest session score and timestamp.
+            """
+            sessions_ref = db.collection("user_data").document(user_id).collection("sessions")
+            sessions = list(sessions_ref.order_by("timestamp", direction=firestore.Query.ASCENDING).stream())
+            if len(sessions) < 3:
+                return None, None, None
+            first_two_scores = []
+            for session in sessions[:2]:
+                s_data = session.to_dict()
+                responses = s_data.get("summary_responses", [])
+                try:
+                    values = [float(r.get("response_value", 0)) for r in responses]
+                except Exception:
+                    values = []
+                if values:
+                    total_score = sum(values) - 10
+                    first_two_scores.append(total_score)
+            if len(first_two_scores) < 2:
+                return None, None, None
+            first_two_lowest = min(first_two_scores)
+            all_session_scores = []
+            for session in sessions:
+                s_data = session.to_dict()
+                responses = s_data.get("summary_responses", [])
+                try:
+                    values = [float(r.get("response_value", 0)) for r in responses]
+                except Exception:
+                    values = []
+                if values:
+                    total_score = sum(values) - 10
+                    all_session_scores.append({"timestamp": s_data.get("timestamp"), "score": total_score})
+            if not all_session_scores:
+                return None, None, None
+            all_session_scores.sort(key=lambda x: x["timestamp"])
+            latest = all_session_scores[-1]["score"]
+            latest_timestamp = all_session_scores[-1]["timestamp"]
+            return first_two_lowest, latest, latest_timestamp
+    
         def is_clinically_significant(initial, latest):
-            """Determine if a client shows clinically significant improvement."""
-            return initial > 18 and (initial - latest) >= 12
-
+            # Example: initial > 18 and improvement (initial - latest) >= 12.
+            return initial is not None and initial > 18 and (initial - latest) >= 12
+        
         def is_recent(timestamp):
-            """Check if the session is within the last 6 months."""
             six_months_ago = datetime.utcnow().replace(tzinfo=timezone.utc) - timedelta(days=182)
             return timestamp and timestamp >= six_months_ago
-
-        # 🔹 Compute Statistics
-        improved = 0
-        clinically_significant = 0
-        improved_last_6_months = 0
-        clinically_significant_last_6_months = 0
-
+    
+        # --- Compute Counters for Improvement Metrics ---
+        count_improved = 0
+        count_clinically_significant = 0
+        count_not_improving = 0
+        count_improved_6m = 0
+        count_clinically_significant_6m = 0
+        count_not_improving_6m = 0
+    
         for client in clients:
-            initial, latest = calculate_scores(client['user_id'])
-
+            user_id = client['user_id']
+            # Use the helper functions.
+            initial, latest, latest_ts = calculate_scores(user_id)
+            first_two_lowest, latest_ni, latest_ts_ni = calculate_not_improving_scores(user_id)
+    
+            # Only consider improvement metrics if client has at least 3 sessions.
             if initial is not None and latest is not None:
                 if latest < initial:
-                    improved += 1
+                    count_improved += 1
                 if is_clinically_significant(initial, latest):
-                    clinically_significant += 1
-
-                # 🔍 Check if the latest session is within the last 6 months
-                user_sessions_ref = db.collection('user_data').document(client['user_id']).collection('sessions').stream()
-                has_recent_responses = any(is_recent(session.to_dict().get('timestamp')) for session in user_sessions_ref)
-
-                if has_recent_responses:
-                    if latest < initial:
-                        improved_last_6_months += 1
-                    if is_clinically_significant(initial, latest):
-                        clinically_significant_last_6_months += 1
-
+                    count_clinically_significant += 1
+            if first_two_lowest is not None and latest_ni is not None:
+                if latest_ni <= first_two_lowest:
+                    count_not_improving += 1
+    
+            # For 6-month metrics, only count if the client's latest session is recent.
+            if latest_ts and is_recent(latest_ts):
+                if initial is not None and latest is not None and latest < initial:
+                    count_improved_6m += 1
+                if initial is not None and latest is not None and is_clinically_significant(initial, latest):
+                    count_clinically_significant_6m += 1
+            if latest_ts_ni and is_recent(latest_ts_ni):
+                if first_two_lowest is not None and latest_ni is not None and latest_ni <= first_two_lowest:
+                    count_not_improving_6m += 1
+    
+        # Compute percentages based on the total number of active clients.
+        percent_improved = (count_improved / total_clients) * 100 if total_clients else 0
+        percent_clinically_significant = (count_clinically_significant / total_clients) * 100 if total_clients else 0
+        percent_not_improving = (count_not_improving / total_clients) * 100 if total_clients else 0
+        percent_improved_6m = (count_improved_6m / total_clients) * 100 if total_clients else 0
+        percent_clinically_significant_6m = (count_clinically_significant_6m / total_clients) * 100 if total_clients else 0
+        percent_not_improving_6m = (count_not_improving_6m / total_clients) * 100 if total_clients else 0
+    
+        # Prepare the search filters for navigation to the admin-search-clients page.
+        search_filters = {
+            "clinician_id": clinician_id,
+            "metric": metric,
+            "time": time_filter
+        }
+    
         return cors_enabled_response({
             'total_clients': total_clients,
-            'percent_improved': (improved / total_clients) * 100,
-            'percent_clinically_significant': (clinically_significant / total_clients) * 100,
-            'percent_improved_last_6_months': (improved_last_6_months / total_clients) * 100,
-            'percent_clinically_significant_last_6_months': (clinically_significant_last_6_months / total_clients) * 100,
+            'percent_improved': percent_improved,
+            'percent_clinically_significant': percent_clinically_significant,
+            'percent_not_improving': percent_not_improving,
+            'percent_improved_last_6_months': percent_improved_6m,
+            'percent_clinically_significant_last_6_months': percent_clinically_significant_6m,
+            'percent_not_improving_last_6_months': percent_not_improving_6m,
+            'admin_search_filters': search_filters
         }, 200)
-
+    
     except Exception as e:
         print(f"Error in /clinician-data: {e}")
         return cors_enabled_response({'message': 'Failed to fetch clinician data.', 'error': str(e)}, 500)
-
-
-from datetime import datetime, timedelta, timezone
 
 @main_bp.route('/overall-data', methods=['GET'])
 def overall_data():
@@ -1313,7 +1414,6 @@ def overall_data():
     except Exception as e:
         print(f"Error calculating overall data: {e}")
         return cors_enabled_response({'message': 'Error calculating overall data', 'error': str(e)}, 500)
-
 
     
 @main_bp.route('/logout-device', methods=['POST'])
@@ -1599,7 +1699,9 @@ def admin_search_clients():
       - metric (optional): 
             "total_clients" (default) - no filtering, return all clients,
             "improved" - only return clients where latest < initial,
-            "clinically_significant" - only return clients meeting a clinical threshold.
+            "clinically_significant" - only return clients meeting a clinical threshold,
+            "not-improving" - only return clients whose most recent score is equal to or lower than 
+                              the lowest score of their first two sessions.
       - time (optional): "all" (default) or "6months" to only include clients whose latest session is within the past 6 months.
     """
     decoded_token, error_response, status_code = validate_token()
@@ -1611,7 +1713,7 @@ def admin_search_clients():
     
     # Get the filters from query parameters.
     clinician_id = request.args.get('clinician_id', "").strip()  # Optional: blank means all clinicians.
-    query_text = request.args.get('query', '').strip().lower()   # New search query parameter.
+    query_text = request.args.get('query', '').strip().lower()   # Search query parameter.
     metric = request.args.get('metric', 'total_clients').strip().lower()
     time_filter = request.args.get('time', 'all').strip().lower()
     
@@ -1652,18 +1754,21 @@ def admin_search_clients():
                     filtered_by_query.append(client)
             clients = filtered_by_query
 
-        # --- Step 3: Define helper functions to calculate client scores ---
+        # --- Step 3: Helper Functions to Calculate Scores ---
+
         def calculate_scores_for_client(user_id, is_archived):
             """
-            Fetch sessions for a client from the appropriate parent collection,
+            For improvement metrics ("improved" and "clinically_significant"):
+            Fetch sessions for a client from the appropriate parent collection and
             calculate the score for the earliest and the latest session (using summary_responses).
-            Returns a tuple: (initial_score, latest_score, latest_timestamp) or (None, None, None) if insufficient data.
+            Returns a tuple: (initial_score, latest_score, latest_timestamp) if there are at least 3 sessions;
+            otherwise returns (None, None, None).
             """
             collection = "user_data" if not is_archived else "archived_user_data"
             sessions_ref = db.collection(collection).document(user_id).collection("sessions")
             sessions = list(sessions_ref.order_by("timestamp", direction=firestore.Query.ASCENDING).stream())
-            if len(sessions) < 2:
-                return None, None, None
+            if len(sessions) < 3:
+                return None, None, None  # Only consider clients with 3 or more sessions
             session_scores = []
             for session in sessions:
                 s_data = session.to_dict()
@@ -1680,7 +1785,56 @@ def admin_search_clients():
             if len(session_scores) < 2:
                 return None, None, None
             return session_scores[0]["score"], session_scores[-1]["score"], session_scores[-1]["timestamp"]
-        
+
+        def calculate_scores_for_not_improving(user_id, is_archived):
+            """
+            For "not-improving": Look at the client's first 2 sessions and take the lowest score.
+            Also, get the latest score (and timestamp) from all sessions.
+            Returns (first_two_lowest, latest_score, latest_timestamp) if there are at least 2 sessions.
+            For improvement metrics, require at least 3 sessions.
+            """
+            collection = "user_data" if not is_archived else "archived_user_data"
+            sessions_ref = db.collection(collection).document(user_id).collection("sessions")
+            sessions = list(sessions_ref.order_by("timestamp", direction=firestore.Query.ASCENDING).stream())
+            if len(sessions) < 3:
+                return None, None, None  # Require at least 3 sessions for improvement metrics.
+            # Calculate first 2 session scores
+            first_two_sessions = sessions[:2]
+            first_two_scores = []
+            for session in first_two_sessions:
+                s_data = session.to_dict()
+                timestamp = s_data.get("timestamp")
+                responses = s_data.get("summary_responses", [])
+                try:
+                    values = [float(r.get("response_value", 0)) for r in responses]
+                except Exception:
+                    values = []
+                if values:
+                    total_score = sum(values) - 10
+                    first_two_scores.append({"timestamp": timestamp, "score": total_score})
+            if len(first_two_scores) < 2:
+                return None, None, None
+            first_two_lowest = min(first_two_scores[0]["score"], first_two_scores[1]["score"])
+            # Calculate latest score from all sessions
+            all_session_scores = []
+            for session in sessions:
+                s_data = session.to_dict()
+                timestamp = s_data.get("timestamp")
+                responses = s_data.get("summary_responses", [])
+                try:
+                    values = [float(r.get("response_value", 0)) for r in responses]
+                except Exception:
+                    values = []
+                if values:
+                    total_score = sum(values) - 10
+                    all_session_scores.append({"timestamp": timestamp, "score": total_score})
+            all_session_scores.sort(key=lambda x: x["timestamp"])
+            if not all_session_scores:
+                return None, None, None
+            latest_score = all_session_scores[-1]["score"]
+            latest_timestamp = all_session_scores[-1]["timestamp"]
+            return first_two_lowest, latest_score, latest_timestamp
+
         def is_clinically_significant(initial, latest):
             # Example criteria: initial > 18 and difference >= 12.
             return initial is not None and initial > 18 and (initial - latest) >= 12
@@ -1692,29 +1846,41 @@ def admin_search_clients():
         # --- Step 4: Filter clients based on metric and time ---
         filtered_clients = []
         if metric == "total_clients":
+            # For total_clients, include all clients regardless of session count.
             filtered_clients = clients
         else:
             for client in clients:
-                initial, latest, last_ts = calculate_scores_for_client(client['user_id'], client['is_archived'])
-                if initial is None or latest is None:
-                    continue  # Skip clients with insufficient data.
-                if time_filter == "6months" and not is_recent(last_ts):
-                    continue
-                if metric == "improved":
-                    if latest < initial:
-                        client['improvement'] = initial - latest
-                        filtered_clients.append(client)
-                elif metric == "clinically_significant":
-                    if is_clinically_significant(initial, latest):
-                        client['improvement'] = initial - latest
+                if metric == "not-improving":
+                    first_two_lowest, latest, last_ts = calculate_scores_for_not_improving(client['user_id'], client['is_archived'])
+                    if first_two_lowest is None or latest is None:
+                        continue
+                    # For "not-improving": if the latest score is equal to or lower than the lowest of the first two sessions.
+                    if latest <= first_two_lowest:
+                        client['improvement'] = first_two_lowest - latest
                         filtered_clients.append(client)
                 else:
-                    return cors_enabled_response({'message': 'Invalid metric parameter'}, 400)
+                    initial, latest, last_ts = calculate_scores_for_client(client['user_id'], client['is_archived'])
+                    if initial is None or latest is None:
+                        # For total_clients, include client even if insufficient sessions.
+                        if metric == "total_clients":
+                            filtered_clients.append(client)
+                        continue
+                    if time_filter == "6months" and not is_recent(last_ts):
+                        continue
+                    if metric == "improved":
+                        if latest < initial:
+                            client['improvement'] = initial - latest
+                            filtered_clients.append(client)
+                    elif metric == "clinically_significant":
+                        if is_clinically_significant(initial, latest):
+                            client['improvement'] = initial - latest
+                            filtered_clients.append(client)
+                    else:
+                        return cors_enabled_response({'message': 'Invalid metric parameter'}, 400)
         
         return cors_enabled_response({'clients': filtered_clients}, 200)
     
     except Exception as e:
         print(f"Error in /admin-search-clients: {e}")
         return cors_enabled_response({'message': 'Error retrieving clients', 'error': str(e)}, 500)
-
 

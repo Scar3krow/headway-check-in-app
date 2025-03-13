@@ -20,7 +20,7 @@ const RemoveUserPage = () => {
     const fetchUsers = async () => {
         try {
             const token = localStorage.getItem("token");
-            const endpoint = role === "clinician" ? "/get-clinicians" : "/get-admins";
+            const endpoint = role === "clinician" ? "/get-only-clinicians" : "/get-admins";
             
             const response = await axios.get(`${API_URL}${endpoint}`, {
                 headers: { Authorization: `Bearer ${token}` },
