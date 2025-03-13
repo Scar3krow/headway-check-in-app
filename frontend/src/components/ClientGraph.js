@@ -38,7 +38,7 @@ const ClientGraph = ({ graphData, onDataPointClick }) => {
         },
         elements: {
             point: {
-                radius: 7,       // ✅ Slightly larger point
+                radius: 4,       // ✅ Slightly larger point
                 hoverRadius: 10, // ✅ Enlarged hover area
                 hitRadius: 22,   // ✅ Expands tap area for mobile users
             },

@@ -75,3 +75,23 @@
     margin-top: 20px;
   }
   
+  @media (max-width: 768px) {
+    /* Stack filter row vertically on mobile */
+    .admin-filter-row {
+      flex-direction: column !important;
+      align-items: vertical !important;
+      gap: 15px !important;
+    }
+  
+    /* Make filter boxes take full width on mobile */
+    .admin-filter-select {
+      width: 100% !important;
+    }
+  
+    /* Adjust the overall search form width and center it */
+    .admin-search-form {
+      width: 90% !important;
+      margin: 0 auto !important;
+    }
+  }
+  

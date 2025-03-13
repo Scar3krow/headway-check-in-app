@@ -160,11 +160,22 @@ const ClientResponsesPage = () => {
       ) - 10
     );
   
-    // Return an array for each label so Chart.js renders them on separate lines.
-    const labels = sessionIds.map((sessionId, index) => [
-      `Session ${index + 1}`,
-      `${formattedSessionDates[index]}`
-    ]);
+    const isMobile = window.innerWidth < 768;
+    let labels;
+    if (isMobile) {
+      // Mobile view: only display date in dd/mm format.
+      labels = sessionIds.map((_, index) => {
+        const parts = formattedSessionDates[index].split('/');
+        // parts = [day, month, yy] => dd/mm
+        return `${parts[0]}/${parts[1]}`;
+      });
+    } else {
+      // Desktop view: multi-line label with session number and full date.
+      labels = sessionIds.map((_, index) => [
+        `Session ${index + 1}`,
+        `(${formattedSessionDates[index]})`
+      ]);
+    }
   
     const graphData = {
       labels,

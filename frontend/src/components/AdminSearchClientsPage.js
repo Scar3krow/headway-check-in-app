@@ -28,7 +28,7 @@ const AdminSearchClientsPage = () => {
   const location = useLocation();
   const urlParams = new URLSearchParams(location.search);
 
-  // Initialize state from URL or default values.
+  // Initialize filter state from URL or default values.
   const [clinicianFilter, setClinicianFilter] = useState(urlParams.get("clinician_id") || "");
   const [metricFilter, setMetricFilter] = useState(urlParams.get("metric") || "total_clients");
   const [timeFilter, setTimeFilter] = useState(urlParams.get("time") || "all");
@@ -74,11 +74,12 @@ const AdminSearchClientsPage = () => {
       setSubmittedQuery(parsed.query);
       setPage(parsed.page);
       setAllResults(parsed.allResults);
-      // Optionally, also restore metricFilter and timeFilter:
       if (parsed.metricFilter) setMetricFilter(parsed.metricFilter);
       if (parsed.timeFilter) setTimeFilter(parsed.timeFilter);
       sessionStorage.removeItem("adminSearchResults");
-    } else if (query) {
+    } else if (clinicianFilter || metricFilter !== "total_clients" || timeFilter !== "all") {
+      // Always fetch search results if filters are provided,
+      // even if query is empty.
       fetchSearchResults();
     } else {
       setAllResults([]);
@@ -116,8 +117,8 @@ const AdminSearchClientsPage = () => {
       const clients = data.clients || [];
       // Filter out any users that are not clients.
       const filteredClients = clients.filter(client => {
-        const role = client.role ? client.role.toLowerCase() : "client";
-        return role === "client";
+        const r = client.role ? client.role.toLowerCase() : "client";
+        return r === "client";
       });
       setAllResults(filteredClients);
       // Reset to first page on new search.

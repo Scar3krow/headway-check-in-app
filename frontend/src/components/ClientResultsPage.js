@@ -152,13 +152,24 @@ const ClientResultsPage = () => {
         0
       ) - 10
     );
-
-    // Create labels as an array of two strings (multi-line) for each session.
-    const labels = sessionIds.map((_, index) => [
-      `Session ${index + 1}`,
-      `(${formattedSessionDates[index]})`
-    ]);
-
+  
+    const isMobile = window.innerWidth < 768;
+    let labels;
+    if (isMobile) {
+      // Mobile view: only display date in dd/mm format.
+      labels = sessionIds.map((_, index) => {
+        const parts = formattedSessionDates[index].split('/');
+        // parts = [day, month, yy] => dd/mm
+        return `${parts[0]}/${parts[1]}`;
+      });
+    } else {
+      // Desktop view: multi-line label with session number and full date.
+      labels = sessionIds.map((_, index) => [
+        `Session ${index + 1}`,
+        `(${formattedSessionDates[index]})`
+      ]);
+    }
+  
     const graphData = {
       labels,
       datasets: [
@@ -173,7 +184,7 @@ const ClientResultsPage = () => {
         },
       ],
     };
-
+  
     setGraphData(graphData);
   };
 

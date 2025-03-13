@@ -74,7 +74,7 @@ const ClinicianDataPage = () => {
     };
 
     const handleBack = () => {
-        navigate("/admin-dashboard");
+        navigate(-1); 
     };
 
     const handleOverallData = () => {
