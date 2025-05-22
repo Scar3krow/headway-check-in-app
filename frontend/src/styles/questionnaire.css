@@ -238,3 +238,11 @@
         margin: 10px auto;
     }
 }
+
+/* **TABLET SPECIFIC FIX** (Adjust tablet size breakpoint for proper handling) */
+@media (min-width: 769px) and (max-width: 1024px) {
+    /* Hide mobile version on tablet */
+    .mobile-questionnaire-container {
+        display: none; /* Ensure mobile version does not show */
+    }
+}
