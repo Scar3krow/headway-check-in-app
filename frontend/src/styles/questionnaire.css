@@ -1,270 +1,213 @@
+/* Base defaults: desktop view */
+.desktop-questionnaire {
+  display: block;
+}
+.mobile-questionnaire-container {
+  display: none;
+}
+
 /* 🟢 Ensure the Questionnaire Page Layout */
 .questionnaire-container {
-    width: 100%;
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 20px;
-    text-align: center;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  text-align: center;
 }
 
 /* ✅ Styling for "Check-In" Header */
 .questionnaire-title {
-    font-size: 24px;
-    font-weight: bold;
-    color: #587266; /* Match theme */
-    margin-bottom: 10px;
+  font-size: 24px;
+  font-weight: bold;
+  color: #587266; /* Match theme */
+  margin-bottom: 10px;
 }
 
 /* ✅ Description Under "Check-In" Header */
 .questionnaire-description {
-    font-size: 16px;
-    color: #587266; /* Match the theme */
-    margin-bottom: 20px;
-    max-width: 600px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-/* 🟢 Desktop Version */
-.desktop-questionnaire {
-    display: none; /* Hide Desktop View by default */
+  font-size: 16px;
+  color: #587266; /* Match the theme */
+  margin-bottom: 20px;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* 🟢 Ensure Each Question is Styled */
 .question-row {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    padding: 15px;
-    border: 1px solid #ddd;
-    background-color: #F1EEE9;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    margin-bottom: 10px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 15px;
+  border: 1px solid #ddd;
+  background-color: #F1EEE9;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 10px;
 }
 
 /* ✅ Style the Likert Scale (Desktop) */
 .likert-options {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 /* ✅ Style the Radio Buttons */
 .likert-option input[type="radio"] {
-    display: none;
+  display: none;
 }
 
 /* ✅ Selected Response Color */
 .likert-option input[type="radio"]:checked + .likert-label {
-    color: #3f8f69;
-    font-weight: bold;
+  color: #3f8f69;
+  font-weight: bold;
 }
 
 /* ✅ Buttons at the Bottom */
 .form-buttons {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 20px;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
 }
 
 /* ✅ Back Button */
 .back-btn {
-    background-color: #587266;
-    color: #D1DDCB;
-    padding: 12px 20px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 16px;
+  background-color: #587266;
+  color: #D1DDCB;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
 }
 
 /* ✅ Submit Button */
 .submit-btn {
-    background: #587266;
-    color: white;
-    padding: 12px 20px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 16px;
-    display: block;
-    margin: 20px auto;
+  background: #587266;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  display: block;
+  margin: 20px auto;
 }
 
 .submit-btn:disabled {
-    background: gray;
-    cursor: not-allowed;
+  background: gray;
+  cursor: not-allowed;
 }
 
 /* ✅ Centered & Styled Counter */
 .question-counter {
-    font-size: 18px;
-    font-weight: bold;
-    color: #587266;
-    text-align: center;
-    margin-bottom: 10px;
+  font-size: 18px;
+  font-weight: bold;
+  color: #587266;
+  text-align: center;
+  margin-bottom: 10px;
 }
 
 /* ✅ Themed Navigation Buttons (Arrow Keys) */
-.themed-nav-btn {
-    font-size: 2rem;
-    padding: 12px;
-    border: none;
-    background: #587266;  /* Green Theme */
-    color: white;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: 0.3s ease;
-    width: 50px;
-    height: 50px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+.navigation-buttons {
+  width: 200px;           /* adjust spacing */
+  margin: 20px auto;      /* center the wrapper */
+  display: flex;
+  justify-content: space-between; /* keep arrows at ends */
 }
 
-.themed-nav-btn:hover {
-    background: #3f8f69;
+.nav-btn {
+  font-size: 2rem;
+  padding: 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #587266;
+  transition: 0.3s;
 }
 
-/* ✅ Disabled State */
-.themed-nav-btn:disabled {
-    background: gray;
-    cursor: not-allowed;
+.nav-btn:hover {
+  color: #3f8f69;
 }
 
-/* 📱 **MOBILE VIEW FIXES** */
+/* 📱 MOBILE VIEW (phones) */
 @media (max-width: 768px) {
-    .desktop-questionnaire {
-        display: none; /* Hide Desktop View */
-    }
-
-    .mobile-questionnaire-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        width: 100%;
-        padding: 20px;
-    }
-
-    /* ✅ Fix Double Header Issue */
-    .mobile-questionnaire-container .questionnaire-title {
-        margin-bottom: 5px;
-    }
-
-    /* ✅ Mobile "Check-In" Description */
-    .mobile-questionnaire-container .questionnaire-description {
-        text-align: center;
-        font-size: 14px;
-        max-width: 90%;
-    }
-
-    /* ✅ Ensure Only One Question is Visible */
-    .question-row {
-        display: none;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        width: 100%;
-    }
-
-    .question-row.active {
-        display: flex;
-    }
-
-    /* ✅ Style the Answer Choices */
-    .response-options {
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-        width: 90%;
-        max-width: 350px;
-    }
-
-    .response-btn {
-        padding: 15px;
-        border: none;
-        border-radius: 10px;
-        background: #587266;
-        color: white;
-        font-size: 1.2rem;
-        cursor: pointer;
-        transition: 0.3s;
-        text-align: center;
-        width: 100%;
-    }
-
-    /* ✅ Highlight Selected Answer */
-    .response-btn.selected {
-        background: #D1DDCB;
-        font-weight: bold;
-    }
-
-    /* ✅ Navigation Buttons */
-    .navigation-buttons {
-        display: flex;
-        justify-content: space-between;  /* space arrows apart */
-        width: 200px;                    /* or whatever gap you want */
-        margin: 20px auto;   
-    }
-
-    .nav-btn {
-        font-size: 2rem;
-        padding: 10px;
-        border: none;
-        background: transparent;
-        cursor: pointer;
-        color: #587266;
-        transition: 0.3s;
-    }
-
-    .nav-btn:hover {
-        color: #587266;
-    }
-
-    /* ✅ Submit Button Always Visible, Greyed Out Until All Questions Answered */
-    .submit-btn {
-        display: block;
-    }
-
-    .submit-btn:disabled {
-        background: gray;
-        cursor: not-allowed;
-    }
-
-    .back-btn {
-        width: 100%;
-        max-width: 300px;
-        text-align: center;
-        margin: 10px auto;
-    }
-}
-
-/* **TABLET SPECIFIC FIX** (Show mobile version on tablet and hide desktop version) */
-@media (min-width: 769px) and (max-width: 1024px) {
-    .mobile-questionnaire-container {
-        display: flex; /* Show mobile version on tablets */
-    }
-
-    .desktop-questionnaire {
-        display: none; /* Hide desktop version on tablets */
-    }
-}
-
-/* **LARGER TABLET/LANDSCAPE SCREENS (1025px - 1280px) */
-@media (min-width: 1025px) and (max-width: 1280px) {
-    .mobile-questionnaire-container {
-        display: flex; /* Show mobile version on larger tablets */
-    }
-
-    .desktop-questionnaire {
-        display: none; /* Hide desktop version on larger tablets */
-    }
-}
-
-@media (min-width: 1281px) {
   .desktop-questionnaire {
-    display: block;
+    display: none;
   }
   .mobile-questionnaire-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    padding: 20px;
+  }
+  /* Fix double header */
+  .mobile-questionnaire-container .questionnaire-title {
+    margin-bottom: 5px;
+  }
+  /* Mobile description */
+  .mobile-questionnaire-container .questionnaire-description {
+    font-size: 14px;
+    max-width: 90%;
+  }
+  /* Only one question visible */
+  .question-row {
     display: none;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    width: 100%;
+  }
+  .question-row.active {
+    display: flex;
+  }
+  /* Answer choices */
+  .response-options {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    width: 90%;
+    max-width: 350px;
+  }
+  .response-btn {
+    padding: 15px;
+    border: none;
+    border-radius: 10px;
+    background: #587266;
+    color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: 0.3s;
+    width: 100%;
+    text-align: center;
+  }
+  .response-btn.selected {
+    background: #D1DDCB;
+    font-weight: bold;
+  }
+  .submit-btn {
+    display: block;
+  }
+  .submit-btn:disabled {
+    background: gray;
+    cursor: not-allowed;
+  }
+  .back-btn {
+    width: 100%;
+    max-width: 300px;
+    margin: 10px auto;
+    text-align: center;
+  }
+}
+
+/* ≤1280px: treat as mobile/tablet */
+@media (max-width: 1280px) {
+  .desktop-questionnaire {
+    display: none !important;
+  }
+  .mobile-questionnaire-container {
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
   }
 }
