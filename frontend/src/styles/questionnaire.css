@@ -27,7 +27,7 @@
 
 /* 🟢 Desktop Version */
 .desktop-questionnaire {
-    display: block; /* Ensure it shows on larger screens */
+    display: none; /* Hide Desktop View by default */
 }
 
 /* 🟢 Ensure Each Question is Styled */
@@ -201,10 +201,9 @@
     /* ✅ Navigation Buttons */
     .navigation-buttons {
         display: flex;
-        justify-content: space-between;
-        width: 100%;
-        max-width: 350px;
-        margin-top: 20px;
+        justify-content: space-between;  /* space arrows apart */
+        width: 200px;                    /* or whatever gap you want */
+        margin: 20px auto;   
     }
 
     .nav-btn {
@@ -239,14 +238,33 @@
     }
 }
 
-/* **TABLET SPECIFIC FIX** (Ensure mobile version shows on tablet) */
+/* **TABLET SPECIFIC FIX** (Show mobile version on tablet and hide desktop version) */
 @media (min-width: 769px) and (max-width: 1024px) {
-    /* Display mobile version on tablets */
     .mobile-questionnaire-container {
-        display: flex; /* Ensure mobile version is displayed */
+        display: flex; /* Show mobile version on tablets */
     }
 
     .desktop-questionnaire {
-        display: none; /* Ensure desktop version is hidden */
+        display: none; /* Hide desktop version on tablets */
     }
+}
+
+/* **LARGER TABLET/LANDSCAPE SCREENS (1025px - 1280px) */
+@media (min-width: 1025px) and (max-width: 1280px) {
+    .mobile-questionnaire-container {
+        display: flex; /* Show mobile version on larger tablets */
+    }
+
+    .desktop-questionnaire {
+        display: none; /* Hide desktop version on larger tablets */
+    }
+}
+
+@media (min-width: 1281px) {
+  .desktop-questionnaire {
+    display: block;
+  }
+  .mobile-questionnaire-container {
+    display: none;
+  }
 }
