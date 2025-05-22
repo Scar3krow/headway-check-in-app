@@ -67,6 +67,13 @@ const ClientDashboard = () => {
                         Logout
                     </button>
                 </div>
+
+                {/* Disclaimer Below the Buttons */}
+                <div className="disclaimer">
+                    <p>
+                        Disclaimer: Please note that this questionnaire is intended to be completed just prior to or during your appointment with your psychologist, and that responses are not monitored in real time. If you are experiencing a crisis or have any safety concerns, please take immediate action by calling Lifeline (13 11 14), Beyond Blue (1300 22 4636) or dial 000.
+                    </p>
+                </div>
             </div>
         </div>
     );

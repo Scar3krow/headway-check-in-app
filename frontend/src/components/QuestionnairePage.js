@@ -73,6 +73,11 @@ const QuestionnairePage = () => {
 
     const handleAnswerSelect = (questionId, value) => {
         setResponses({ ...responses, [questionId]: value });
+
+        // Automatically move to the next question if there's another one
+        if (currentIndex < questions.length - 1) {
+            setCurrentIndex(currentIndex + 1);
+        }
     };
 
     const handleNext = () => {
@@ -220,8 +225,38 @@ const QuestionnairePage = () => {
                     </>
                 )}
             </div>
+
+            {/* ✅ Navigation Arrows (Mobile) */}
+            <div className="navigation-buttons">
+                <button
+                    className="nav-btn"
+                    onClick={handlePrevious}
+                    disabled={currentIndex === 0}
+                >
+                    ←
+                </button>
+                <button
+                    className="nav-btn"
+                    onClick={handleNext}
+                    disabled={currentIndex === questions.length - 1}
+                >
+                    →
+                </button>
+            </div>
+
+            {/* ✅ Submit Button for Mobile */}
+            <div className="form-buttons">
+                <button
+                    type="button"
+                    onClick={handleSubmit}
+                    className="submit-btn"
+                    disabled={Object.keys(responses).length !== questions.length}
+                >
+                    Submit Responses
+                </button>
+            </div>
         </div>
     );
-}
+};
 
 export default QuestionnairePage;
