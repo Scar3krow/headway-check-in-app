@@ -30,10 +30,6 @@
     display: block; /* Ensure it shows on larger screens */
 }
 
-.mobile-questionnaire-container {
-    display: none; /* Hide mobile view by default */
-}
-
 /* 🟢 Ensure Each Question is Styled */
 .question-row {
     display: flex;
@@ -225,13 +221,14 @@
         color: #587266;
     }
 
-    /* ✅ Hide Submit Button Until Last Question */
+    /* ✅ Submit Button Always Visible, Greyed Out Until All Questions Answered */
     .submit-btn {
-        display: none;
+        display: block;
     }
 
-    .submit-btn.visible {
-        display: block;
+    .submit-btn:disabled {
+        background: gray;
+        cursor: not-allowed;
     }
 
     .back-btn {
