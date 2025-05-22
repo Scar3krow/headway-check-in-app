@@ -19,18 +19,17 @@
 .questionnaire-title {
   font-size: 24px;
   font-weight: bold;
-  color: #587266; /* Match theme */
+  color: #587266;
   margin-bottom: 10px;
 }
 
 /* ✅ Description Under "Check-In" Header */
 .questionnaire-description {
   font-size: 16px;
-  color: #587266; /* Match the theme */
+  color: #587266;
   margin-bottom: 20px;
   max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
+  margin: 0 auto 20px;
 }
 
 /* 🟢 Ensure Each Question is Styled */
@@ -42,7 +41,7 @@
   border: 1px solid #ddd;
   background-color: #F1EEE9;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   margin-bottom: 10px;
 }
 
@@ -53,25 +52,20 @@
   gap: 10px;
 }
 
-/* ✅ Style the Radio Buttons */
-.likert-option input[type="radio"] {
-  display: none;
-}
-
-/* ✅ Selected Response Color */
+/* ✅ Desktop Radio Buttons Hidden, Selected Color */
+.likert-option input[type="radio"] { display: none; }
 .likert-option input[type="radio"]:checked + .likert-label {
   color: #3f8f69;
   font-weight: bold;
 }
 
-/* ✅ Buttons at the Bottom */
+/* ✅ Desktop Buttons at the Bottom */
 .form-buttons {
   display: flex;
   justify-content: space-between;
   margin-top: 20px;
 }
 
-/* ✅ Back Button */
 .back-btn {
   background-color: #587266;
   color: #D1DDCB;
@@ -81,7 +75,6 @@
   font-size: 16px;
 }
 
-/* ✅ Submit Button */
 .submit-btn {
   background: #587266;
   color: white;
@@ -89,79 +82,72 @@
   border-radius: 8px;
   cursor: pointer;
   font-size: 16px;
+  margin: 20px auto 0;
   display: block;
-  margin: 20px auto;
 }
-
 .submit-btn:disabled {
   background: gray;
   cursor: not-allowed;
 }
 
-/* ✅ Centered & Styled Counter */
+/* ✅ Counter */
 .question-counter {
   font-size: 18px;
   font-weight: bold;
   color: #587266;
-  text-align: center;
   margin-bottom: 10px;
+  text-align: center;
 }
 
-/* ✅ Themed Navigation Buttons (Arrow Keys) */
+/* ✅ Navigation Arrows Wrapper */
 .navigation-buttons {
-  width: 200px;           /* adjust spacing */
-  margin: 20px auto;      /* center the wrapper */
+  width: 200px;
+  margin: 20px auto;
   display: flex;
-  justify-content: space-between; /* keep arrows at ends */
+  justify-content: space-between;
 }
-
 .nav-btn {
   font-size: 2rem;
-  padding: 10px;
-  border: none;
   background: transparent;
+  border: none;
   cursor: pointer;
   color: #587266;
-  transition: 0.3s;
 }
+.nav-btn:hover { color: #3f8f69; }
+.nav-btn:disabled { color: gray; cursor: not-allowed; }
 
-.nav-btn:hover {
-  color: #3f8f69;
-}
-
-/* 📱 MOBILE VIEW (phones) */
-@media (max-width: 768px) {
+/* ── MOBILE & TABLET (≤1280px) ── */
+@media (max-width: 1280px) {
+  /* hide desktop, show mobile */
   .desktop-questionnaire {
-    display: none;
+    display: none !important;
   }
   .mobile-questionnaire-container {
-    display: flex;
+    display: flex !important;
     flex-direction: column;
     align-items: center;
     width: 100%;
     padding: 20px;
   }
-  /* Fix double header */
+
+  /* mobile header tweaks */
   .mobile-questionnaire-container .questionnaire-title {
     margin-bottom: 5px;
   }
-  /* Mobile description */
   .mobile-questionnaire-container .questionnaire-description {
     font-size: 14px;
     max-width: 90%;
+    margin-bottom: 20px;
   }
-  /* Only one question visible */
+
+  /* only one question visible */
   .question-row {
     display: none;
     flex-direction: column;
-    align-items: center;
-    text-align: center;
-    width: 100%;
   }
-  .question-row.active {
-    display: flex;
-  }
-  /* Answer choices */
+  .question-row.active { display: flex; }
+
+  /* response buttons */
   .response-options {
     display: flex;
     flex-direction: column;
@@ -177,37 +163,21 @@
     color: white;
     font-size: 1.2rem;
     cursor: pointer;
-    transition: 0.3s;
-    width: 100%;
     text-align: center;
+    width: 100%;
   }
   .response-btn.selected {
     background: #D1DDCB;
     font-weight: bold;
   }
-  .submit-btn {
-    display: block;
-  }
-  .submit-btn:disabled {
-    background: gray;
-    cursor: not-allowed;
-  }
+
+  /* submit & back */
+  .submit-btn { display: block; }
+  .submit-btn:disabled { background: gray; }
   .back-btn {
     width: 100%;
     max-width: 300px;
     margin: 10px auto;
     text-align: center;
-  }
-}
-
-/* ≤1280px: treat as mobile/tablet */
-@media (max-width: 1280px) {
-  .desktop-questionnaire {
-    display: none !important;
-  }
-  .mobile-questionnaire-container {
-    display: flex !important;
-    flex-direction: column;
-    align-items: center;
   }
 }
